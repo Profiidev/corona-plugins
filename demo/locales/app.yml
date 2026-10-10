@@ -1,0 +1,162 @@
+_version: 2
+widget:
+  label:
+    en: "Demo ♥ %{count}"
+    de: "Demo ♥ %{count}"
+panel:
+  title:
+    en: Corona plugin API demo
+    de: Corona-Plugin-API-Demo
+  greeting:
+    en: "%{greeting}! Shell language: %{language}"
+    de: "%{greeting}! Shell-Sprache: %{language}"
+  status:
+    en: "Heartbeat %{count} (enabled: %{heartbeat}) · notification urgency: %{urgency}"
+    de: "Herzschlag %{count} (aktiv: %{heartbeat}) · Dringlichkeit: %{urgency}"
+  service:
+    en: Service calls
+    de: Service-Aufrufe
+  desktop:
+    en: Desktop and clipboard
+    de: Desktop und Zwischenablage
+  pick:
+    en: Pick files
+    de: Dateien wählen
+  pick_first:
+    en: pick a file first
+    de: zuerst eine Datei wählen
+  picked:
+    en: "Picked: %{paths}"
+    de: "Gewählt: %{paths}"
+  open_path:
+    en: Open picked file
+    de: Gewählte Datei öffnen
+  open_uri:
+    en: Open example.com
+    de: example.com öffnen
+  opened:
+    en: "opened %{target}"
+    de: "%{target} geöffnet"
+  copy:
+    en: Copy results
+    de: Ergebnisse kopieren
+  copied:
+    en: results copied to the clipboard
+    de: Ergebnisse in die Zwischenablage kopiert
+  results:
+    en: Results
+    de: Ergebnisse
+  pending:
+    en: waiting…
+    de: warte…
+  spawn:
+    en: Spawned process (shared state)
+    de: Gestarteter Prozess (geteilter Zustand)
+  spawned:
+    en: "pid %{pid}, exit %{exit} %{stderr}"
+    de: "PID %{pid}, Exit %{exit} %{stderr}"
+  signals:
+    en: D-Bus signals
+    de: D-Bus-Signale
+  action:
+    en: Notification action
+    de: Benachrichtigungsaktion
+  favorite:
+    en: "Favorite (dynamic select): %{favorite}"
+    de: "Favorit (dynamische Auswahl): %{favorite}"
+  sleep:
+    en: "Sleeping: %{sleeping} · last resume: %{resumed} · service saw: %{event}"
+    de: "Schläft: %{sleeping} · letztes Aufwachen: %{resumed} · Service sah: %{event}"
+button:
+  ping:
+    en: Ping
+    de: Ping
+  time:
+    en: Time (date)
+    de: Zeit (date)
+  spawn:
+    en: Spawn sh loop
+    de: sh-Schleife starten
+  notify:
+    en: Notify
+    de: Benachrichtigen
+  dbus:
+    en: D-Bus
+    de: D-Bus
+  tailscale:
+    en: Tailscale
+    de: Tailscale
+  fetch:
+    en: Fetch
+    de: Abrufen
+  secret:
+    en: Secret round trip
+    de: Geheimnis-Rundlauf
+  dbusNotify:
+    en: Rich notify (D-Bus)
+    de: Reiche Benachrichtigung (D-Bus)
+  stdin:
+    en: Stdin + closeStdin
+    de: Stdin + closeStdin
+  files:
+    en: File handle
+    de: Datei-Handle
+  unixFetch:
+    en: Fetch over unix socket
+    de: Abruf über Unix-Socket
+  ipnBus:
+    en: Tailscale IPN stream
+    de: Tailscale-IPN-Stream
+  settings:
+    en: Next favorite (settings.set)
+    de: Nächster Favorit (settings.set)
+  secretSetting:
+    en: Read token setting
+    de: Token-Einstellung lesen
+  oauth:
+    en: OAuth loopback
+    de: OAuth-Loopback
+notify:
+  summary:
+    en: Corona demo
+    de: Corona-Demo
+  body:
+    en: "%{greeting}! Pick an action."
+    de: "%{greeting}! Wähle eine Aktion."
+  open:
+    en: Open
+    de: Öffnen
+  "yes":
+    en: "Yes"
+    de: Ja
+  "no":
+    en: "No"
+    de: Nein
+  rich_summary:
+    en: Rich notification
+    de: Reiche Benachrichtigung
+  rich_body:
+    en: "<b>Bold</b>, <i>italic</i> and a <a href=\"https://example.com\">link</a>.\nThe icon is a 2×2 image from image-data."
+    de: "<b>Fett</b>, <i>kursiv</i> und ein <a href=\"https://example.com\">Link</a>.\nDas Symbol ist ein 2×2-Bild aus image-data."
+  reply:
+    en: Reply
+    de: Antworten
+  reply_placeholder:
+    en: Type a reply…
+    de: Antwort eingeben…
+  rich_hint:
+    en: reply in the popup; NotificationReplied shows under D-Bus signals
+    de: im Popup antworten; NotificationReplied erscheint unter D-Bus-Signale
+  waiting:
+    en: "notification %{id}: waiting for a click"
+    de: "Benachrichtigung %{id}: wartet auf einen Klick"
+  picked:
+    en: "notification %{id}: picked %{key}"
+    de: "Benachrichtigung %{id}: %{key} gewählt"
+error:
+  unknown:
+    en: "unknown method %{method}"
+    de: "unbekannte Methode %{method}"
+  running:
+    en: the sh loop is still running
+    de: die sh-Schleife läuft noch

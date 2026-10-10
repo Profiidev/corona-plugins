@@ -1,0 +1,68 @@
+#:schema /run/current-system/sw/share/corona/schema/plugin.schema.json
+id = "demo"
+name = "Demo"
+version = "0.1.0"
+description = "Exercises every plugin API: service, IPC, D-Bus, processes, sockets, fetch, secrets, notifications, i18n, desktop"
+
+# headless, runs while the plugin is enabled; answers `call` and `corona ipc plugin demo <method>`
+service = "service.ts"
+
+# a bar button; shown as `demo:demo` in a bar
+[widgets.demo]
+view = "widget.ts"
+name = "Demo"
+
+# opened by the widget, as `demo:main`
+[panels.main]
+view = "panel.ts"
+name = "Demo"
+width = 520
+height = 640
+
+[[settings]]
+key = "greeting"
+label = "Greeting"
+type = "text"
+default = "Hello"
+
+[[settings]]
+key = "heartbeat"
+label = "Heartbeat"
+type = "toggle"
+default = true
+
+[[settings]]
+key = "urgency"
+label = "Notification urgency"
+type = "select"
+default = "normal"
+options = [
+  { value = "low", label = "Low" },
+  { value = "normal", label = "Normal" },
+  { value = "critical", label = "Critical" },
+]
+
+# entered in the settings app, kept in the keyring; read with `corona/secrets.get("token")`
+[[settings]]
+key = "token"
+label = "API token"
+type = "secret"
+placeholder = "paste any text"
+
+# options come from the service's `setOptions`, not from here
+[[settings]]
+key = "favorite"
+label = "Favorite (options from the service)"
+type = "select"
+dynamic = true
+default = "none"
+
+[capabilities]
+corona = ["notifications", "secrets", "desktop", "power"]
+# the PNG read as bytes for `image(Uint8Array)`; file handles write into the data dir
+fs = { read = ["${pluginDir}", "${dataDir}"], write = ["${dataDir}"], execute = ["sh", "date"] }
+# children get only these host variables; `sleep` inside `sh -c` needs PATH
+process = { env = ["PATH", "HOME"] }
+network = { hosts = ["example.com"], unix = ["/run/tailscale/tailscaled.sock"] }
+clipboard = { write = true }
+dbus = { session = ["org.freedesktop.Notifications", "org.kde.kdeconnect"] }
