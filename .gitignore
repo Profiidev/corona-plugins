@@ -1,5 +1,4 @@
-# written by gpui-shell when a plugin loads
+# written by corona when a plugin loads
 *.d.ts
-jsconfig.json
 node_modules
 *.tsbuildinfo

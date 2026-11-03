@@ -21,7 +21,7 @@ jobs:
       - uses: bahmutov/npm-install@v1
 
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
-      # gpui-kit.d.ts is gitignored, tsc needs each plugin's own
+      # corona.d.ts is gitignored, tsc needs each plugin's own
       - name: Generate plugin types
         run: nix run github:Profiidev/corona/latest --accept-flake-config -- types $(dirname */plugin.toml)
 
