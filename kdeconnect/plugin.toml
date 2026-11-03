@@ -1,7 +1,8 @@
 #:schema /run/current-system/sw/share/corona/schema/plugin.schema.json
 id = "kdeconnect"
 name = "Phone"
-version = "0.1.0"
+api = 2
+version = "0.2.0"
 description = "KDE Connect: phone status, quick actions, media, SMS, pairing and screen casting with scrcpy"
 
 # follows kdeconnectd on D-Bus; pushes its state to the views
