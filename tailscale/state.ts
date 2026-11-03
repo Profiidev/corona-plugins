@@ -1,15 +1,15 @@
-import { type JsonValue, getState } from 'corona/plugin';
+import { type Value, getState } from 'corona/plugin';
 import type { Recent, Snapshot } from './service.ts';
 
-export function isObject(value: JsonValue): value is Record<string, JsonValue> {
+export function isObject(value: Value): value is Record<string, Value> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isSnapshot(value: JsonValue): value is Snapshot {
+function isSnapshot(value: Value): value is Snapshot {
   return isObject(value) && 'conn' in value;
 }
 
-function isRecent(value: JsonValue): value is Recent[] {
+function isRecent(value: Value): value is Recent[] {
   return (
     Array.isArray(value) &&
     value.every((item) => isObject(item) && 'file' in item)
