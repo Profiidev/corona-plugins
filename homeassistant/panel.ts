@@ -1,12 +1,11 @@
 import {
-  type AsyncContext,
   type Color,
   type Context,
   type Element,
+  type Props,
   View,
   div
-} from 'gpui-kit';
-import type { Props } from 'gpui-shell';
+} from 'corona/kit';
 import {
   Slider,
   SliderIndicator,
@@ -17,18 +16,17 @@ import {
   type Theme,
   h_flex,
   v_flex
-} from 'gpui-base';
+} from 'corona/base';
 import {
   Button,
-  type ButtonElement,
   Icon,
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputState,
   Switch
-} from 'gpui-component';
-import { type JsonValue, call } from 'corona/plugin';
+} from 'corona/component';
+import { type Value, call } from 'corona/plugin';
 import { get } from 'corona/settings';
 import { closePanel } from 'corona/surface';
 import type { Entity, Listed, Snapshot, Status } from './service.ts';
@@ -121,7 +119,7 @@ export default class Panel extends View {
   declare private draft: Draft | null;
   declare private busy: Set<string>;
 
-  public init(_props: Props | undefined, _cx: AsyncContext): void {
+  public init(_props: Props | undefined): void {
     this.browsing = false;
     this.all = null;
     this.query = '';
@@ -512,8 +510,9 @@ export default class Panel extends View {
     }
     this.busy.add('browse');
     cx.notify();
-    cx.spawn(async (cx) => {
-      const answer = await call('browse');
+    void cx.spawn(async (cx) => {
+      // The service reports a failure through state `msg`
+      const answer = await call('browse').catch((): null => null);
       this.busy.delete('browse');
       if (isListed(answer)) {
         this.all = answer;
@@ -594,7 +593,7 @@ export default class Panel extends View {
     if (!d) {
       return;
     }
-    const data: Record<string, JsonValue> = {};
+    const data: Record<string, Value> = {};
     if (d.bri) {
       data.brightness = single(d.bri.value());
     }
@@ -631,23 +630,28 @@ export default class Panel extends View {
     entity: string,
     domain: string,
     service: string,
-    data: JsonValue,
+    data: Value,
     cx: Context
   ): void {
     this.run('call', { data, domain, entity, service }, cx, entity);
   }
 
   /** Calls the service; errors come back through state `msg` */
-  public run(method: string, args: JsonValue, cx: Context, key = method): void {
+  public run(method: string, args: Value, cx: Context, key = method): void {
     if (this.busy.has(key)) {
       return;
     }
     this.busy.add(key);
     cx.notify();
-    cx.spawn(async (cx) => {
-      await call(method, args);
-      this.busy.delete(key);
-      cx.notify();
+    void cx.spawn(async (cx) => {
+      try {
+        await call(method, args);
+      } catch {
+        // The service reports the failure through state `msg`
+      } finally {
+        this.busy.delete(key);
+        cx.notify();
+      }
     });
   }
 }
@@ -945,7 +949,7 @@ function slider(state: SliderState, theme: Theme): Element {
     );
 }
 
-function headerButton(id: string, icon: string, label: string): ButtonElement {
+function headerButton(id: string, icon: string, label: string): Element {
   return new Button(id)
     .cursor_pointer()
     .size_8()
@@ -954,7 +958,7 @@ function headerButton(id: string, icon: string, label: string): ButtonElement {
     .child(new Icon(icon).size('small'));
 }
 
-function iconButton(id: string, icon: string, label: string): ButtonElement {
+function iconButton(id: string, icon: string, label: string): Element {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()
