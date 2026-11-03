@@ -41,6 +41,7 @@ const SECTIONS: [string, string[]][] = [
     ['sensor', 'binary_sensor', 'weather', 'number', 'climate', 'media_player']
   ],
   ['Buttons', ['button', 'input_button']],
+  ['Scenes', ['scene']],
   ['Automations', ['automation', 'script']]
 ];
 const TOGGLES = new Set([
@@ -71,6 +72,7 @@ const ICONS: Record<string, string> = {
   light: 'lightbulb',
   lock: 'lock',
   media_player: 'tv',
+  scene: 'palette',
   script: 'play',
   switch: 'power',
   weather: 'cloud'
@@ -316,22 +318,53 @@ export default class Panel extends View {
           .disabled(unavailable || this.busy.has(e.id))
           .on_change((value, cx) => this.toggle(e, value, cx))
       );
+    } else if (kind === 'scene') {
+      // A scene has no off of its own: Off turns off the entities it sets
+      const members = list(e.attributes.entity_id).filter(
+        (id): id is string => typeof id === 'string'
+      );
+      main.child(
+        h_flex()
+          .flex_none()
+          .gap_1p5()
+          .child(
+            actionButton(`ha-scene-off-${e.id}`, 'power', 'Off')
+              .tooltip(
+                members.length
+                  ? `Turn off ${members.length} entities`
+                  : 'This scene lists no entities to turn off'
+              )
+              .disabled(unavailable || members.length === 0)
+              .loading(this.busy.has(`${e.id}:off`))
+              .on_click((_e, cx) =>
+                this.run(
+                  'call',
+                  {
+                    data: null,
+                    domain: 'homeassistant',
+                    entity: members,
+                    service: 'turn_off'
+                  },
+                  cx,
+                  `${e.id}:off`
+                )
+              )
+          )
+          .child(
+            actionButton(`ha-scene-on-${e.id}`, 'play', 'On')
+              .disabled(unavailable)
+              .loading(this.busy.has(e.id))
+              .on_click((_e, cx) =>
+                this.service(e.id, 'scene', 'turn_on', null, cx)
+              )
+          )
+      );
     } else if (Object.hasOwn(RUNS, kind)) {
       const [text, glyph, service] = RUNS[kind];
       main.child(
-        new Button(`ha-run-${e.id}`)
-          .cursor_pointer()
-          .outline()
-          .size('small')
+        actionButton(`ha-run-${e.id}`, glyph, text)
           .disabled(unavailable)
           .loading(this.busy.has(e.id))
-          .child(
-            h_flex()
-              .items_center()
-              .gap_1p5()
-              .child(new Icon(`icons/${glyph}.svg`).size('small'))
-              .child(text)
-          )
           .on_click((_e, cx) => this.service(e.id, kind, service, null, cx))
       );
     } else {
@@ -734,6 +767,12 @@ function label(e: Entity): string {
   if (kind === 'script') {
     return e.state === 'on' ? 'Running' : 'Idle';
   }
+  // Like a button, a scene's state is when it was last activated
+  if (kind === 'scene') {
+    return Number.isNaN(Date.parse(e.state))
+      ? 'Never activated'
+      : `Last activated ${when(e.state)}`;
+  }
   // A button's state is when it was last pressed
   if (kind === 'button' || kind === 'input_button') {
     return Number.isNaN(Date.parse(e.state))
@@ -956,6 +995,21 @@ function headerButton(id: string, icon: string, label: string): Element {
     .p_0()
     .tooltip(label)
     .child(new Icon(icon).size('small'));
+}
+
+/** A small outlined button with an icon and a word, for run and scene rows */
+function actionButton(id: string, glyph: string, text: string): Element {
+  return new Button(id)
+    .cursor_pointer()
+    .outline()
+    .size('small')
+    .child(
+      h_flex()
+        .items_center()
+        .gap_1p5()
+        .child(new Icon(`icons/${glyph}.svg`).size('small'))
+        .child(text)
+    );
 }
 
 function iconButton(id: string, icon: string, label: string): Element {
