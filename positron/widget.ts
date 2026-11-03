@@ -1,5 +1,5 @@
-import { type Context, type Element, View, div } from 'gpui-kit';
-import { Icon } from 'gpui-component';
+import { type Context, type Element, View, div } from 'corona/kit';
+import { Icon } from 'corona/component';
 import { call } from 'corona/plugin';
 import { bar } from 'corona/surface';
 
@@ -20,7 +20,8 @@ export default class Widget extends View {
       .hover((el) => el.bg(theme.accent))
       // Positron closes its window on a click outside of it, so this toggles
       // From the bar, which its backdrop leaves clickable
-      .on_click((_e, cx) => cx.spawn(async () => call('toggle')))
+      // The service already tells the user when positron is unreachable
+      .on_click(() => void call('toggle').catch(() => {}))
       .child(
         new Icon('icons/notebook-pen.svg')
           .size('small')
