@@ -634,7 +634,7 @@ export default class Panel extends View {
     method: string,
     args: Value,
     key = method
-  ): Element {
+  ): Element<'Button'> {
     return new Button(id)
       .cursor_pointer()
       .label(label)
@@ -722,7 +722,11 @@ function row(
   return item;
 }
 
-function iconButton(id: string, icon: string, label: string): Element {
+function iconButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()
@@ -733,7 +737,11 @@ function iconButton(id: string, icon: string, label: string): Element {
     .child(new Icon(icon).size('small'));
 }
 
-function headerButton(id: string, icon: string, label: string): Element {
+function headerButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .size_8()

@@ -948,7 +948,11 @@ function slider(state: SliderState): Element {
   return new Slider(state).flex_1().px_2();
 }
 
-function headerButton(id: string, icon: string, label: string): Element {
+function headerButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .size_8()
@@ -958,7 +962,11 @@ function headerButton(id: string, icon: string, label: string): Element {
 }
 
 /** A small outlined button with an icon and a word, for run and scene rows */
-function actionButton(id: string, glyph: string, text: string): Element {
+function actionButton(
+  id: string,
+  glyph: string,
+  text: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .outline()
@@ -972,7 +980,11 @@ function actionButton(id: string, glyph: string, text: string): Element {
     );
 }
 
-function iconButton(id: string, icon: string, label: string): Element {
+function iconButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()

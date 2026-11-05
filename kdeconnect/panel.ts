@@ -1,11 +1,4 @@
-import {
-  type Context,
-  type Element,
-  type NativeElement,
-  type Props,
-  View,
-  div
-} from 'corona/kit';
+import { type Context, type Element, type Props, View, div } from 'corona/kit';
 import { type Theme, h_flex, v_flex } from 'corona/base';
 import {
   Button,
@@ -1176,7 +1169,7 @@ export default class Panel extends View {
     label: string,
     method: string,
     args: Value
-  ): Element {
+  ): Element<'Button'> {
     return new Button(id)
       .cursor_pointer()
       .size('small')
@@ -1253,7 +1246,7 @@ function group(theme: Theme, rows: Element[]): Element {
     );
 }
 
-function scroll(id: string): NativeElement {
+function scroll(id: string): Element<'div'> {
   return v_flex().id(id).flex_1().min_h_0().overflow_y_scroll().gap_4();
 }
 
@@ -1292,7 +1285,11 @@ function text(theme: Theme, title: string | Element, desc: string): Element {
     );
 }
 
-function input(id: string, state: InputState, label: string): Element {
+function input(
+  id: string,
+  state: InputState,
+  label: string
+): Element<'InputGroup'> {
   return new InputGroup(id).input(new InputGroupInput(state).aria_label(label));
 }
 
@@ -1304,7 +1301,11 @@ function slider(state: SliderState, disabled: boolean): Element {
     .opacity(disabled ? 0.5 : 1);
 }
 
-function headerButton(id: string, icon: string, label: string): Element {
+function headerButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .size_8()
@@ -1313,7 +1314,11 @@ function headerButton(id: string, icon: string, label: string): Element {
     .child(new Icon(icon).size('small'));
 }
 
-function iconButton(id: string, icon: string, label: string): Element {
+function iconButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()
