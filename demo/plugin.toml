@@ -71,7 +71,7 @@ fs = { read = [
   "date"
 ] }
 # children get only these host variables; `sleep` inside `sh -c` needs the host's PATH
-process = { env = ["PATH", "HOME"] }
+process = { env = ["PATH"] }
 network = { hosts = ["example.com"], unix = ["/run/tailscale/tailscaled.sock"] }
 clipboard = { write = true }
 # corona owns org.freedesktop.Notifications: notifications go through `corona/notifications`
