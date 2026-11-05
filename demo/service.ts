@@ -1,45 +1,45 @@
 import {
   type Call,
-  type JsonValue,
+  type Value,
   fail,
   getState,
-  nextCall,
+  onCall,
   reply,
   setState
 } from 'corona/plugin';
-import { nextAction, notify } from 'corona/notifications';
+import { notify, onAction } from 'corona/notifications';
 import {
   type Rule,
   call as dbusCall,
   getProperty,
   nameHasOwner,
-  nextSignal,
   subscribe
 } from 'corona/dbus';
 import * as secrets from 'corona/secrets';
 import { open, readFile } from 'fs/promises';
 import {
+  type Redirect,
   listenRedirect,
-  nextRedirect,
+  onRedirect,
   openUri,
   pickFiles
 } from 'corona/desktop';
-import { nextSleepEvent } from 'corona/power';
+import { onSleep } from 'corona/power';
 import { closePanel, openPanel } from 'corona/surface';
 import { get, set, setOptions } from 'corona/settings';
 import { t } from 'corona/i18n';
 import process, { type ChildProcess } from 'process';
 import { type Socket, connect } from 'net';
 import { Buffer } from 'buffer';
-import type { AsyncContext } from 'gpui-kit';
-import { message, ok } from './util.ts';
+import type { Context } from 'corona/kit';
+import { message } from './util.ts';
 
 const KDECONNECT = 'org.kde.kdeconnect';
 const TAILSCALE = '/run/tailscale/tailscaled.sock';
 const TEST_URL = 'https://example.com/';
 
 /** What `call(method)` in a view and `corona ipc plugin demo <method>` reach */
-const methods: Record<string, (args: JsonValue) => Promise<JsonValue>> = {
+const methods: Record<string, (args: Value) => Promise<Value>> = {
   dbus,
   fetch: fetchBoth,
   files,
@@ -67,7 +67,10 @@ const FAVORITES = [
   { label: 'Water', value: 'water' }
 ];
 
-export default async function main(cx: AsyncContext): Promise<void> {
+/** What a service's `cx` has: `sleep` and `timer` */
+export default async function main(
+  cx: Pick<Context, 'sleep' | 'timer'>
+): Promise<void> {
   let beats = 0;
   cx.timer.every(1000, () => {
     if (get('heartbeat')) {
@@ -81,20 +84,14 @@ export default async function main(cx: AsyncContext): Promise<void> {
     pathNamespace: '/modules/kdeconnect',
     sender: KDECONNECT
   });
-  const options = setOptions('favorite', FAVORITES);
-  if (options) {
-    console.warn(`demo: setOptions: ${options.message}`);
+  try {
+    setOptions('favorite', FAVORITES);
+  } catch (error) {
+    console.warn(`demo: setOptions: ${message(error)}`);
   }
-  void sleepEvents();
-
-  while (true) {
-    const call = await nextCall();
-    if ('message' in call) {
-      break;
-    } // The service is stopping
-    // Not awaited: `notify` waits for a click while other calls go on
-    void answer(call);
-  }
+  onSleep(sleepEvent);
+  // Not awaited: `notify` waits for a click while other calls go on
+  onCall((call) => void answer(call));
 }
 
 async function answer({ id, method, args }: Call): Promise<void> {
@@ -113,25 +110,20 @@ async function answer({ id, method, args }: Call): Promise<void> {
 /** Pushes what `rule` matches into state `signals`, newest first */
 async function watch(rule: Rule): Promise<void> {
   try {
-    const id = ok(await subscribe(rule));
-    while (true) {
-      const signal = ok(await nextSignal(id));
-      if (!signal) {
-        return;
-      }
+    await subscribe(rule, (signal) => {
       const seen = getState('signals');
       const line = `${signal.member} ${JSON.stringify(signal.args)}`;
       setState(
         'signals',
         [line, ...(Array.isArray(seen) ? seen : [])].slice(0, 8)
       );
-    }
+    });
   } catch (error) {
     console.warn(`demo: watching ${rule.sender}: ${message(error)}`);
   }
 }
 
-async function ping(): Promise<JsonValue> {
+async function ping(): Promise<Value> {
   return {
     at: new Date().toISOString(),
     greeting: get('greeting'),
@@ -140,7 +132,7 @@ async function ping(): Promise<JsonValue> {
 }
 
 /** `date` resolved through the granted PATH */
-async function time(): Promise<JsonValue> {
+async function time(): Promise<Value> {
   const out = await process.run('date', ['+%F %T %Z']);
   if (out.code !== 0) {
     throw new Error(out.stderr.trim() || `date exited ${out.code}`);
@@ -151,7 +143,7 @@ async function time(): Promise<JsonValue> {
 let child: ChildProcess | null = null;
 
 /** A short `sh` loop whose lines stream into state `spawn` */
-async function spawn(): Promise<JsonValue> {
+async function spawn(): Promise<Value> {
   if (child) {
     throw new Error(t('error.running'));
   }
@@ -160,7 +152,7 @@ async function spawn(): Promise<JsonValue> {
   const running = process.spawn('sh', ['-c', script]);
   child = running;
   const lines: string[] = [];
-  const publish = (exit: JsonValue, stderr: string | null) =>
+  const publish = (exit: Value, stderr: string | null) =>
     setState('spawn', { exit, lines: [...lines], pid: running.pid, stderr });
   publish(null, null);
   void (async () => {
@@ -184,69 +176,65 @@ async function spawn(): Promise<JsonValue> {
 }
 
 /** Answers with the action the user picks; the call times out after 30 s, the state still follows */
-async function notifyAndWait(): Promise<JsonValue> {
-  const id = ok(
-    await notify({
-      actions: [
-        { key: 'default', label: t('notify.open') },
-        { key: 'yes', label: t('notify.yes') },
-        { key: 'no', label: t('notify.no') }
-      ],
-      body: t('notify.body', { greeting: get('greeting') }),
-      icon: 'dialog-information',
-      summary: t('notify.summary'),
-      urgency: get('urgency')
-    })
-  );
+async function notifyAndWait(): Promise<Value> {
+  const id = await notify({
+    actions: [
+      { key: 'default', label: t('notify.open') },
+      { key: 'yes', label: t('notify.yes') },
+      { key: 'no', label: t('notify.no') }
+    ],
+    body: t('notify.body', { greeting: get('greeting') }),
+    icon: 'dialog-information',
+    summary: t('notify.summary'),
+    urgency: get('urgency')
+  });
   return waitForAction(id);
 }
 
 /** The first action picked, or reply typed, on notification `id`, also kept in state `action` */
-async function waitForAction(id: number): Promise<JsonValue> {
+async function waitForAction(id: number): Promise<Value> {
   setState('action', t('notify.waiting', { id }));
-  while (true) {
-    // Every waiter gets every action of the plugin's notifications
-    const action = ok(await nextAction());
-    if (action.id !== id) {
-      continue;
-    }
-    const picked =
-      action.text === null || action.text === undefined
-        ? action.key
-        : `${action.key}: ${action.text}`;
-    setState('action', t('notify.picked', { id, key: picked }));
-    return { id, key: action.key, text: action.text ?? null };
-  }
+  return new Promise((resolve) => {
+    // Every listener gets every action of the plugin's notifications
+    const stop = onAction((action) => {
+      if (action.id !== id) {
+        return;
+      }
+      stop();
+      const picked =
+        action.text === null || action.text === undefined
+          ? action.key
+          : `${action.key}: ${action.text}`;
+      setState('action', t('notify.picked', { id, key: picked }));
+      resolve({ id, key: action.key, text: action.text ?? null });
+    });
+  });
 }
 
-async function dbus(): Promise<JsonValue> {
-  const kdeconnect = ok(await nameHasOwner('session', KDECONNECT));
-  let devices: JsonValue = null;
+async function dbus(): Promise<Value> {
+  const kdeconnect = await nameHasOwner('session', KDECONNECT);
+  let devices: Value = null;
   if (kdeconnect) {
     // `devices` is a Qt overload (0, 1 and 2 args): no signature, so the 2-argument one is picked by arity
-    const ids = ok(
-      await dbusCall({
-        args: [false, false],
-        bus: 'session',
-        dest: KDECONNECT,
-        iface: 'org.kde.kdeconnect.daemon',
-        method: 'devices',
-        path: '/modules/kdeconnect'
-      })
-    );
+    const ids = await dbusCall({
+      args: [false, false],
+      bus: 'session',
+      dest: KDECONNECT,
+      iface: 'org.kde.kdeconnect.daemon',
+      method: 'devices',
+      path: '/modules/kdeconnect'
+    });
     const list = Array.isArray(ids) ? ids.map(String) : [];
     devices = await Promise.all(
       list.map(async (device) => ({
         id: device,
-        name: ok(
-          await getProperty({
-            bus: 'session',
-            dest: KDECONNECT,
-            iface: 'org.kde.kdeconnect.device',
-            name: 'name',
-            path: `/modules/kdeconnect/devices/${device}`
-          })
-        )
+        name: await getProperty({
+          bus: 'session',
+          dest: KDECONNECT,
+          iface: 'org.kde.kdeconnect.device',
+          name: 'name',
+          path: `/modules/kdeconnect/devices/${device}`
+        })
       }))
     );
   }
@@ -260,7 +248,7 @@ type TailscaleStatus = {
 };
 
 /** LocalAPI over the daemon's unix socket; HTTP/1.0 so the body ends at EOF, unchunked */
-async function tailscale(): Promise<JsonValue> {
+async function tailscale(): Promise<Value> {
   let socket: Socket | null = null;
   try {
     socket = await connect({ path: TAILSCALE });
@@ -311,7 +299,7 @@ async function tailscale(): Promise<JsonValue> {
 }
 
 /** Once buffered, once streamed chunk by chunk */
-async function fetchBoth(): Promise<JsonValue> {
+async function fetchBoth(): Promise<Value> {
   const response = await fetch(TEST_URL, { timeout: 10_000 });
   const bytes = (await response.arrayBuffer()).byteLength;
 
@@ -340,13 +328,13 @@ async function fetchBoth(): Promise<JsonValue> {
 }
 
 /** A round trip through the user's keyring */
-async function secret(): Promise<JsonValue> {
+async function secret(): Promise<Value> {
   const key = 'demo-token';
   const value = `token-${Date.now()}`;
-  ok(await secrets.set(key, value));
-  const read = ok(await secrets.get(key));
-  ok(await secrets.remove(key));
-  const afterRemove = ok(await secrets.get(key));
+  await secrets.set(key, value);
+  const read = await secrets.get(key);
+  await secrets.remove(key);
+  const afterRemove = await secrets.get(key);
   return { afterRemove, matches: read === value, read, stored: value };
 }
 
@@ -356,51 +344,47 @@ async function secret(): Promise<JsonValue> {
  * service picks: it closes the panel, waits for the dialog, keeps the paths in
  * the shared state and opens the panel again.
  */
-async function pick(): Promise<JsonValue> {
+async function pick(): Promise<Value> {
   closePanel('main');
-  const picked = ok(
-    await pickFiles({ acceptLabel: t('panel.pick'), multiple: true })
-  );
-  // `null` when cancelled: keep the last pick
-  if (picked) {
-    setState('picked', picked);
+  try {
+    const picked = await pickFiles({
+      acceptLabel: t('panel.pick'),
+      multiple: true
+    });
+    // `null` when cancelled: keep the last pick
+    if (picked) {
+      setState('picked', picked);
+    }
+    return picked;
+  } finally {
+    openPanel('main');
   }
-  openPanel('main');
-  return picked;
 }
 
 /** Pushes each suspend and resume into state `sleep` */
-async function sleepEvents(): Promise<void> {
-  while (true) {
-    const event = await nextSleepEvent();
-    if ('message' in event) {
-      return;
-    } // The service is stopping
-    setState(
-      'sleep',
-      `${event.sleeping ? 'suspending' : 'resumed'} at ${new Date().toLocaleTimeString()}`
-    );
-  }
+function sleepEvent(event: { sleeping: boolean }): void {
+  setState(
+    'sleep',
+    `${event.sleeping ? 'suspending' : 'resumed'} at ${new Date().toLocaleTimeString()}`
+  );
 }
 
 /** Markup, a picture and an inline reply; answers with the click or the typed text */
-async function richNotify(): Promise<JsonValue> {
-  const id = ok(
-    await notify({
-      actions: [{ key: 'open', label: t('notify.open') }],
-      body: t('notify.rich_body'),
-      // The PNG through the `fs.read` grant, sent as the notification's picture
-      image: await readFile('assets/gradient.png'),
-      reply: { placeholder: t('notify.reply_placeholder') },
-      summary: t('notify.rich_summary'),
-      timeout: 30_000
-    })
-  );
+async function richNotify(): Promise<Value> {
+  const id = await notify({
+    actions: [{ key: 'open', label: t('notify.open') }],
+    body: t('notify.rich_body'),
+    // The PNG through the `fs.read` grant, sent as the notification's picture
+    image: await readFile('assets/gradient.png'),
+    reply: { placeholder: t('notify.reply_placeholder') },
+    summary: t('notify.rich_summary'),
+    timeout: 30_000
+  });
   return waitForAction(id);
 }
 
 /** `closeStdin` ends the child's input after the queued writes */
-async function stdin(): Promise<JsonValue> {
+async function stdin(): Promise<Value> {
   const script =
     'n=0; while read l; do n=$((n+1)); echo "got $l"; done; echo "eof after $n lines"';
   const child = process.spawn('sh', ['-c', script]);
@@ -420,7 +404,7 @@ async function stdin(): Promise<JsonValue> {
 }
 
 /** A file handle in the data dir: write, append, then read back in 4-byte pieces */
-async function files(): Promise<JsonValue> {
+async function files(): Promise<Value> {
   const path = 'demo-file.bin';
   let file = await open(path, 'w');
   await file.write('hello ');
@@ -453,7 +437,7 @@ async function files(): Promise<JsonValue> {
 }
 
 /** The same LocalAPI as `tailscale`, but `fetch` speaks HTTP over the unix socket */
-async function unixFetch(): Promise<JsonValue> {
+async function unixFetch(): Promise<Value> {
   const response = await fetch(
     'http://local-tailscaled.sock/localapi/v0/status?peers=false',
     {
@@ -474,7 +458,7 @@ async function unixFetch(): Promise<JsonValue> {
 }
 
 /** The first line of the long-lived `watch-ipn-bus` NDJSON stream (mask 2: initial state) */
-async function ipnBus(): Promise<JsonValue> {
+async function ipnBus(): Promise<Value> {
   const stream = await fetch(
     'http://local-tailscaled.sock/localapi/v0/watch-ipn-bus?mask=2',
     {
@@ -504,30 +488,33 @@ async function ipnBus(): Promise<JsonValue> {
 }
 
 /** Steps the dynamic `favorite` select through the options the service set */
-async function settings(): Promise<JsonValue> {
+async function settings(): Promise<Value> {
   const before = get('favorite');
   const index = FAVORITES.findIndex((option) => option.value === before);
   const after = FAVORITES[(index + 1) % FAVORITES.length].value;
-  ok(set('favorite', after));
+  set('favorite', after);
   // The write lands after this render, so `get` still answers `before` here
   return { after, before };
 }
 
 /** The `token` secret setting, entered in corona's settings app */
-async function secretSetting(): Promise<JsonValue> {
-  const token = ok(await secrets.get('token'));
+async function secretSetting(): Promise<Value> {
+  const token = await secrets.get('token');
   // Never echo the secret itself
   return token === null ? { set: false } : { length: token.length, set: true };
 }
 
 /** A loopback OAuth-style redirect: the browser is sent to our own listener */
-async function oauth(): Promise<JsonValue> {
-  const listening = ok(listenRedirect({ timeoutMs: 60_000 }));
-  ok(
-    openUri(
-      `${listening.redirectUri}callback?code=demo-${Date.now()}&state=a%20b`
+async function oauth(): Promise<Value> {
+  const listening = listenRedirect({ timeoutMs: 60_000 });
+  // Registered before the browser opens: the callback runs once, redirect or failure
+  const redirect = new Promise<Redirect>((resolve, reject) =>
+    onRedirect(listening.id, (event) =>
+      'message' in event ? reject(new Error(event.message)) : resolve(event)
     )
   );
-  const redirect = ok(await nextRedirect(listening.id));
-  return { port: listening.port, ...redirect };
+  openUri(
+    `${listening.redirectUri}callback?code=demo-${Date.now()}&state=a%20b`
+  );
+  return { port: listening.port, ...(await redirect) };
 }

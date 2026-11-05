@@ -1,15 +1,15 @@
 import {
   type Call,
-  type JsonValue,
+  type Value,
   fail,
-  nextCall,
+  onCall,
   reply,
   setState
 } from 'corona/plugin';
-import { get, nextChange, set } from 'corona/settings';
+import { type Change, get, onChange, set } from 'corona/settings';
 import * as secrets from 'corona/secrets';
 import { WebSocket, type WebSocketSocket } from 'websocket';
-import type { AsyncContext } from 'gpui-kit';
+import type { Context } from 'corona/kit';
 import { isObject } from './state.ts';
 
 export type Status =
@@ -21,7 +21,7 @@ export type Status =
 export type Entity = {
   id: string;
   state: string;
-  attributes: Record<string, JsonValue>;
+  attributes: Record<string, Value>;
 };
 /** What the views read from state `ha` */
 export type Snapshot = {
@@ -36,13 +36,13 @@ export type Listed = {
   name: string;
 };
 
-type Args = Record<string, JsonValue>;
+type Args = Record<string, Value>;
 /** What Home Assistant sends over the websocket */
 type Message = {
   id?: number;
   type: string;
   success?: boolean;
-  result?: JsonValue;
+  result?: Value;
   error?: { message?: string };
   event?: Event;
 };
@@ -60,10 +60,10 @@ type State = {
 /** Subscribe_entities' compressed state: `s` state, `a` attributes */
 type Compressed = {
   s?: string;
-  a?: Record<string, JsonValue>;
+  a?: Record<string, Value>;
 };
 
-function isStates(value: JsonValue): value is State[] {
+function isStates(value: Value): value is State[] {
   return (
     Array.isArray(value) &&
     value.every(
@@ -82,7 +82,7 @@ function publish(patch: Partial<Snapshot>): void {
 }
 
 /** Each answers with the line the panel shows, or a value */
-const methods: Record<string, (args: Args) => Promise<JsonValue>> = {
+const methods: Record<string, (args: Args) => Promise<Value>> = {
   /** Every entity, for Manage entities: one `get_states`, not kept */
   browse: async () => {
     const states = await live().request({ type: 'get_states' });
@@ -108,24 +108,18 @@ const methods: Record<string, (args: Args) => Promise<JsonValue>> = {
   },
   pin: async ({ id, on }) => {
     const pinned = get('entities').filter((x) => x !== id);
-    const error = set('entities', on ? [...pinned, String(id)] : pinned);
-    if (error) {
-      throw new Error(error.message);
-    }
+    set('entities', on ? [...pinned, String(id)] : pinned);
     return null;
   }
 };
 
-export default async function main(cx: AsyncContext): Promise<void> {
+/** What a service's `cx` has: `sleep` and `timer` */
+type ServiceContext = Pick<Context, 'sleep' | 'timer'>;
+
+export default async function main(cx: ServiceContext): Promise<void> {
+  onChange(follow);
+  onCall((call) => void answer(call));
   void connect(cx);
-  void follow();
-  while (true) {
-    const call = await nextCall();
-    if ('message' in call) {
-      break;
-    } // The service is stopping
-    void answer(call);
-  }
 }
 
 async function answer({ id, method, args }: Call): Promise<void> {
@@ -156,22 +150,16 @@ async function nextCredentials(): Promise<void> {
 }
 
 /** Settings changes: new credentials reconnect, new pins resubscribe */
-async function follow(): Promise<void> {
-  while (true) {
-    const change = await nextChange();
-    if ('message' in change) {
-      return;
-    } // The service is stopping
-    if (change.key === 'url' || change.key === 'token') {
-      session?.close();
-      credentialsChanged();
-    } else if (change.key === 'entities' && 'value' in change) {
-      void session
-        ?.subscribe(change.value)
-        .catch((error: unknown) =>
-          console.warn(`homeassistant: ${message(error)}`)
-        );
-    }
+function follow(change: Change): void {
+  if (change.key === 'url' || change.key === 'token') {
+    session?.close();
+    credentialsChanged();
+  } else if (change.key === 'entities' && 'value' in change) {
+    void session
+      ?.subscribe(change.value)
+      .catch((error: unknown) =>
+        console.warn(`homeassistant: ${message(error)}`)
+      );
   }
 }
 
@@ -180,12 +168,13 @@ async function follow(): Promise<void> {
  * is refused; retries with a backoff (2 s to 2 min) while unreachable, sooner
  * when the settings change.
  */
-async function connect(cx: AsyncContext): Promise<void> {
+async function connect(cx: ServiceContext): Promise<void> {
   let delay = 2000;
   while (true) {
     const changed = nextCredentials();
     const url = get('url').trim().replace(/\/+$/, '');
-    const token = await secrets.get('token');
+    // A locked or missing keyring counts as no token
+    const token = await secrets.get('token').catch((): null => null);
     if (!url || !token || typeof token !== 'string') {
       publish({ entities: {}, error: null, status: 'unconfigured' });
       await changed;
@@ -243,7 +232,7 @@ class Session {
   declare private next: number;
   declare private readonly pending: Map<
     number,
-    { resolve: (value: JsonValue) => void; reject: (error: Error) => void }
+    { resolve: (value: Value) => void; reject: (error: Error) => void }
   >;
   /** The id of the running subscribe_entities */
   declare private subscription: number | null;
@@ -292,8 +281,8 @@ class Session {
 
   public async request(msg: {
     type: string;
-    [key: string]: JsonValue;
-  }): Promise<JsonValue> {
+    [key: string]: Value;
+  }): Promise<Value> {
     const id = this.next;
     this.next += 1;
     return new Promise((resolve, reject) => {

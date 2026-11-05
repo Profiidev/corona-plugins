@@ -1,8 +1,8 @@
 import {
   type Call,
-  type JsonValue,
+  type Value,
   fail,
-  nextCall,
+  onCall,
   reply,
   setState
 } from 'corona/plugin';
@@ -11,7 +11,6 @@ import {
   call as dbusCall,
   getAll,
   nameHasOwner,
-  nextSignal,
   setProperty,
   subscribe
 } from 'corona/dbus';
@@ -78,7 +77,7 @@ export type CastOptions = {
   screenOff: boolean;
 };
 
-type Args = Record<string, JsonValue>;
+type Args = Record<string, Value>;
 
 /** Each answers with the line the panel shows */
 const methods: Record<string, (args: Args) => Promise<string | null>> = {
@@ -170,13 +169,7 @@ export default async function main(): Promise<void> {
     sender: 'org.freedesktop.DBus'
   });
   queueRefresh();
-  while (true) {
-    const call = await nextCall();
-    if ('message' in call) {
-      break;
-    } // The service is stopping
-    void answer(call);
-  }
+  onCall((call) => void answer(call));
 }
 
 async function answer({ id, method, args }: Call): Promise<void> {
@@ -201,10 +194,7 @@ async function answer({ id, method, args }: Call): Promise<void> {
 /** Every signal `rule` matches (property changes, devices coming and going) refreshes the snapshot */
 async function watch(rule: Rule): Promise<void> {
   try {
-    const id = ok(await subscribe(rule));
-    while (ok(await nextSignal(id))) {
-      queueRefresh();
-    }
+    await subscribe(rule, () => queueRefresh());
   } catch (error) {
     console.warn(`kdeconnect: watching ${rule.sender}: ${message(error)}`);
   }
@@ -230,21 +220,19 @@ function queueRefresh(): void {
 
 async function refresh(): Promise<void> {
   try {
-    if (!ok(await nameHasOwner('session', KC))) {
+    if (!(await nameHasOwner('session', KC))) {
       setState('kc', { devices: [], running: false });
       return;
     }
-    const ids = ok(
-      await dbusCall({
-        args: [false, false],
-        bus: 'session',
-        dest: KC,
-        iface: 'org.kde.kdeconnect.daemon',
-        method: 'devices',
-        path: ROOT,
-        signature: 'bb'
-      })
-    );
+    const ids = await dbusCall({
+      args: [false, false],
+      bus: 'session',
+      dest: KC,
+      iface: 'org.kde.kdeconnect.daemon',
+      method: 'devices',
+      path: ROOT,
+      signature: 'bb'
+    });
     if (!isStrings(ids)) {
       throw new Error('unexpected device list');
     }
@@ -268,8 +256,8 @@ async function read(id: string): Promise<Device | null> {
     dest: KC,
     iface: IFACE,
     path: path(id)
-  });
-  if (!isObject(props) || 'message' in props) {
+  }).catch((): null => null);
+  if (!isObject(props)) {
     return null;
   } // Gone meanwhile
   const reachable = props.isReachable === true;
@@ -328,41 +316,39 @@ async function read(id: string): Promise<Device | null> {
 async function pluginProps(
   id: string,
   name: string
-): Promise<Record<string, JsonValue> | null> {
+): Promise<Record<string, Value> | null> {
   const props = await getAll({
     bus: 'session',
     dest: KC,
     iface: `${IFACE}.${name}`,
     path: `${path(id)}/${name}`
-  });
-  return isObject(props) && !('message' in props) ? props : null;
+  }).catch((): null => null);
+  return isObject(props) ? props : null;
 }
 
-function path(id: JsonValue): string {
+function path(id: Value): string {
   return `${ROOT}/devices/${String(id)}`;
 }
 
-async function device(id: JsonValue, method: string): Promise<JsonValue> {
-  const answer = ok(
-    await dbusCall({
-      bus: 'session',
-      dest: KC,
-      iface: IFACE,
-      method,
-      path: path(id)
-    })
-  );
+async function device(id: Value, method: string): Promise<Value> {
+  const answer = await dbusCall({
+    bus: 'session',
+    dest: KC,
+    iface: IFACE,
+    method,
+    path: path(id)
+  });
   queueRefresh();
   return answer;
 }
 
 async function plugin(
-  id: JsonValue,
+  id: Value,
   name: string,
   method: string,
-  args?: JsonValue[],
+  args?: Value[],
   signature?: string
-): Promise<JsonValue> {
+): Promise<Value> {
   const call = {
     args,
     bus: 'session' as const,
@@ -371,25 +357,19 @@ async function plugin(
     method,
     path: `${path(id)}/${name}`
   };
-  return ok(await dbusCall(signature ? { ...call, signature } : call));
+  return dbusCall(signature ? { ...call, signature } : call);
 }
 
-async function mpris(
-  id: JsonValue,
-  name: string,
-  value: number
-): Promise<void> {
-  ok(
-    await setProperty({
-      bus: 'session',
-      dest: KC,
-      iface: `${IFACE}.mprisremote`,
-      name,
-      path: `${path(id)}/mprisremote`,
-      signature: 'i',
-      value
-    })
-  );
+async function mpris(id: Value, name: string, value: number): Promise<void> {
+  await setProperty({
+    bus: 'session',
+    dest: KC,
+    iface: `${IFACE}.mprisremote`,
+    name,
+    path: `${path(id)}/mprisremote`,
+    signature: 'i',
+    value
+  });
 }
 
 /** Mutes to 0 and back to the volume before, kept per device in state `unmute` */
@@ -431,15 +411,11 @@ async function pick(
   options: Parameters<typeof pickFiles>[0]
 ): Promise<string[] | null> {
   closePanel('main');
-  const picked = await pickFiles(options);
-  openPanel('main');
-  if (picked === null) {
-    return null;
+  try {
+    return await pickFiles(options);
+  } finally {
+    openPanel('main');
   }
-  if ('message' in picked) {
-    throw new Error(picked.message);
-  }
-  return picked;
 }
 
 // ---- casting: adb over Wi-Fi, scrcpy for the window ----
@@ -454,7 +430,7 @@ async function adb(args: string[]): Promise<string> {
   return text;
 }
 
-function setCast(id: JsonValue, patch: Partial<Cast>): void {
+function setCast(id: Value, patch: Partial<Cast>): void {
   const all = castStates();
   const now = all[String(id)] ?? { casting: false, serial: null };
   setState('cast', { ...all, [String(id)]: { ...now, ...patch } });
@@ -526,10 +502,11 @@ async function cast({ id, serial, options }: Args): Promise<string | null> {
         return null;
       }
       [dir] = picked;
-      const error = set('recordings', dir);
-      if (error) {
+      try {
+        set('recordings', dir);
+      } catch (error) {
         console.warn(
-          `kdeconnect: keeping the recordings folder: ${error.message}`
+          `kdeconnect: keeping the recordings folder: ${message(error)}`
         );
       }
     }
@@ -561,23 +538,6 @@ async function cast({ id, serial, options }: Args): Promise<string | null> {
     }
   })();
   return 'Casting';
-}
-
-/** `value` without its failure, which is thrown */
-function ok<T>(value: T | { message: string }): T {
-  if (failed(value)) {
-    throw new Error(value.message);
-  }
-  return value;
-}
-
-function failed(value: unknown): value is { message: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    'message' in value
-  );
 }
 
 function message(error: unknown): string {

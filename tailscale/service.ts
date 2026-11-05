@@ -1,8 +1,8 @@
 import {
   type Call,
-  type JsonValue,
+  type Value,
   fail,
-  nextCall,
+  onCall,
   reply,
   setState
 } from 'corona/plugin';
@@ -12,7 +12,7 @@ import { get, set } from 'corona/settings';
 import process from 'process';
 import nodePath from 'path';
 import { Buffer } from 'buffer';
-import type { AsyncContext } from 'gpui-kit';
+import type { Context } from 'corona/kit';
 import { isObject, snapshot as last, recent } from './state.ts';
 
 const SOCKET = '/run/tailscale/tailscaled.sock';
@@ -99,7 +99,7 @@ const PREF_FIELDS: Record<Exclude<PrefKey, 'advertise'>, string> = {
   ssh: 'RunSSH'
 };
 
-function isPrefField(key: JsonValue): key is keyof typeof PREF_FIELDS {
+function isPrefField(key: Value): key is keyof typeof PREF_FIELDS {
   return typeof key === 'string' && Object.hasOwn(PREF_FIELDS, key);
 }
 
@@ -110,7 +110,7 @@ const CONN: Record<string, Conn> = {
   Stopped: 'stopped'
 };
 
-type Args = Record<string, JsonValue>;
+type Args = Record<string, Value>;
 /** Each answers with the line the panel shows */
 const methods: Record<string, (args: Args) => Promise<string | null>> = {
   login,
@@ -137,15 +137,12 @@ const methods: Record<string, (args: Args) => Promise<string | null>> = {
 
 let loginRequested = false;
 
-export default async function main(cx: AsyncContext): Promise<void> {
+/** What a service's `cx` has: `sleep` and `timer` */
+type ServiceContext = Pick<Context, 'sleep' | 'timer'>;
+
+export default async function main(cx: ServiceContext): Promise<void> {
+  onCall((call) => void answer(call));
   void watch(cx);
-  while (true) {
-    const call = await nextCall();
-    if ('message' in call) {
-      break;
-    } // The service is stopping
-    void answer(call);
-  }
 }
 
 async function answer({ id, method, args }: Call): Promise<void> {
@@ -172,7 +169,7 @@ async function answer({ id, method, args }: Call): Promise<void> {
  * netmap change, and refreshes the snapshot on each. Reconnects with a backoff
  * while tailscaled is down.
  */
-async function watch(cx: AsyncContext): Promise<void> {
+async function watch(cx: ServiceContext): Promise<void> {
   let delay = 1000;
   while (true) {
     try {
@@ -223,9 +220,10 @@ function notified(notify: {
   // Only the login this plugin asked for opens a browser
   if (notify.BrowseToURL && loginRequested) {
     loginRequested = false;
-    const error = openUri(notify.BrowseToURL);
-    if (error) {
-      setState('msg', `✗ ${error.message}`);
+    try {
+      openUri(notify.BrowseToURL);
+    } catch (error) {
+      setState('msg', `✗ ${message(error)}`);
     }
   }
   if (notify.ErrMessage) {
@@ -337,7 +335,7 @@ function unavailable(error: unknown): void {
 async function api<T = unknown>(
   path: string,
   method = 'GET',
-  body?: JsonValue
+  body?: Value
 ): Promise<T> {
   const options: Parameters<typeof fetch>[1] = {
     headers: HEADERS,
@@ -438,9 +436,10 @@ async function receive(): Promise<string | null> {
       return null;
     }
     [dir] = picked;
-    const error = set('downloads', dir);
-    if (error) {
-      console.warn(`tailscale: keeping the Taildrop folder: ${error.message}`);
+    try {
+      set('downloads', dir);
+    } catch (error) {
+      console.warn(`tailscale: keeping the Taildrop folder: ${message(error)}`);
     }
   }
   await tailscale(['file', 'get', '--conflict=rename', dir]);
@@ -455,15 +454,11 @@ async function pick(
   options: Parameters<typeof pickFiles>[0]
 ): Promise<string[] | null> {
   closePanel('main');
-  const picked = await pickFiles(options);
-  openPanel('main');
-  if (picked === null) {
-    return null;
+  try {
+    return await pickFiles(options);
+  } finally {
+    openPanel('main');
   }
-  if ('message' in picked) {
-    throw new Error(picked.message);
-  }
-  return picked;
 }
 
 async function tailscale(args: string[]): Promise<void> {

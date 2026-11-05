@@ -1,5 +1,5 @@
-import { type Color, type Element, div } from 'gpui-kit';
-import { h_flex, v_flex } from 'gpui-base';
+import { type Color, type Element, div } from 'corona/kit';
+import { h_flex, v_flex } from 'corona/base';
 import type { Conn } from './service.ts';
 
 export const ONLINE: Color = '#3fbf6f';
@@ -28,7 +28,8 @@ export function dot(color: Color) {
 
 /** `color` at `alpha`, for the tinted surfaces the theme has no token for */
 export function tint(color: Color, alpha: number): Color {
-  return `#${color.slice(1, 7)}${Math.round(alpha * 255)
+  // Theme colors are `#rrggbb` at runtime, though typed as any `Color`
+  return `#${String(color).slice(1, 7)}${Math.round(alpha * 255)
     .toString(16)
     .padStart(2, '0')}`;
 }

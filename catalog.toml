@@ -3,7 +3,7 @@
 [[plugin]]
 id = "demo"
 name = "Demo"
-version = "0.2.0"
+version = "0.3.0"
 description = "Exercises every plugin API: service, IPC, D-Bus, processes, sockets, fetch, secrets, notifications, i18n, desktop"
 icon = "assets/gradient.png"
 readme = "README.md"
@@ -12,7 +12,7 @@ tags = ["demo", "test"]
 [[plugin]]
 id = "tailscale"
 name = "Tailscale"
-version = "0.1.0"
+version = "0.2.0"
 description = "Tailscale status, devices, exit nodes, Taildrop and preferences"
 readme = "README.md"
 tags = ["network", "vpn"]
@@ -20,7 +20,7 @@ tags = ["network", "vpn"]
 [[plugin]]
 id = "kdeconnect"
 name = "Phone"
-version = "0.1.0"
+version = "0.2.0"
 description = "KDE Connect: phone status, quick actions, media, SMS, pairing and screen casting with scrcpy"
 readme = "README.md"
 tags = ["phone", "kdeconnect"]
@@ -28,7 +28,7 @@ tags = ["phone", "kdeconnect"]
 [[plugin]]
 id = "homeassistant"
 name = "Home Assistant"
-version = "0.1.0"
+version = "0.2.0"
 description = "Home Assistant: pinned lights, switches, sensors and automations, live over the WebSocket API"
 readme = "README.md"
 tags = ["home", "smart-home"]
@@ -36,7 +36,7 @@ tags = ["home", "smart-home"]
 [[plugin]]
 id = "positron"
 name = "Notes"
-version = "0.1.0"
+version = "0.2.0"
 description = "Opens and closes the notes window of positron from the bar"
 readme = "README.md"
 tags = ["notes", "positron"]

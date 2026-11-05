@@ -1,27 +1,20 @@
-import {
-  type AsyncContext,
-  type Context,
-  type Element,
-  View,
-  div
-} from 'gpui-kit';
-import type { Props } from 'gpui-shell';
-import { Popover, type Theme, h_flex, v_flex } from 'gpui-base';
+import { type Context, type Element, type Props, View, div } from 'corona/kit';
+import { type Theme, h_flex, v_flex } from 'corona/base';
 import {
   Button,
-  type ButtonElement,
   ErrorAlert,
   Icon,
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputState,
+  Popover,
   Select,
   Switch,
   Tab,
   TabBar
-} from 'gpui-component';
-import { type JsonValue, call, setState } from 'corona/plugin';
+} from 'corona/component';
+import { type Value, call, setState } from 'corona/plugin';
 import { get } from 'corona/settings';
 import { closePanel } from 'corona/surface';
 import { openUri } from 'corona/desktop';
@@ -89,7 +82,7 @@ export default class Panel extends View {
   declare private busy: Set<string>;
   declare private search: InputState;
 
-  public init(_props: Props | undefined, cx: AsyncContext): void {
+  public init(_props: Props | undefined): void {
     this.tab = 0;
     this.query = '';
     this.hideOffline = false;
@@ -98,7 +91,7 @@ export default class Panel extends View {
     this.busy = new Set();
     this.search = InputState('Name, IP or OS');
     // The bus keeps the state current; this catches up on what it rate-limited away
-    cx.spawn(async () => call('refresh'));
+    call('refresh').catch(() => {});
   }
 
   public render(cx: Context): Element {
@@ -463,32 +456,17 @@ export default class Panel extends View {
       this.expanded = null;
       cx.notify();
     };
-    return Popover.new(`ts-more-${peer.id}`)
-      .anchor('top_right')
+    return new Popover(`ts-more-${peer.id}`, '⋮')
+      .card_anchor('top_right')
       .open(this.expanded === peer.id)
       .on_open_change((open, cx) => {
         this.expanded = open ? peer.id : null;
         cx.notify();
       })
-      .trigger(
-        iconButton(
-          `ts-more-button-${peer.id}`,
-          'icons/ellipsis-vertical.svg',
-          `Actions for ${peer.name}`
-        ).ghost()
-      )
       .content(
         v_flex()
           .min_w(170)
-          .mt_1()
-          .p_1()
           .gap_0p5()
-          .rounded_lg()
-          .border_1()
-          .border_color(theme.border)
-          .bg(theme.surface)
-          .text_color(theme.surface_foreground)
-          .shadow_md()
           .child(
             menuItem(
               theme,
@@ -654,9 +632,9 @@ export default class Panel extends View {
     id: string,
     label: string,
     method: string,
-    args: JsonValue,
+    args: Value,
     key = method
-  ): ButtonElement {
+  ): Element<'Button'> {
     return new Button(id)
       .cursor_pointer()
       .label(label)
@@ -666,16 +644,21 @@ export default class Panel extends View {
   }
 
   /** Calls the service; it reports the outcome through state `msg` */
-  public run(method: string, args: JsonValue, cx: Context, key = method): void {
+  public run(method: string, args: Value, cx: Context, key = method): void {
     if (this.busy.has(key)) {
       return;
     }
     this.busy.add(key);
     cx.notify();
-    cx.spawn(async (cx) => {
-      await call(method, args);
-      this.busy.delete(key);
-      cx.notify();
+    void cx.spawn(async (cx) => {
+      try {
+        await call(method, args);
+      } catch {
+        // The service reports the failure through state `msg`
+      } finally {
+        this.busy.delete(key);
+        cx.notify();
+      }
     });
   }
 
@@ -685,13 +668,15 @@ export default class Panel extends View {
   }
 
   private open(url: string): void {
-    const error = openUri(url);
-    setState(
-      'msg',
-      error
-        ? `✗ ${error.message}`
-        : 'Opening the admin console in your browser…'
-    );
+    try {
+      openUri(url);
+      setState('msg', 'Opening the admin console in your browser…');
+    } catch (error) {
+      setState(
+        'msg',
+        `✗ ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 }
 
@@ -737,7 +722,11 @@ function row(
   return item;
 }
 
-function iconButton(id: string, icon: string, label: string): ButtonElement {
+function iconButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()
@@ -748,7 +737,11 @@ function iconButton(id: string, icon: string, label: string): ButtonElement {
     .child(new Icon(icon).size('small'));
 }
 
-function headerButton(id: string, icon: string, label: string): ButtonElement {
+function headerButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .size_8()
