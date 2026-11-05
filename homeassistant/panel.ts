@@ -6,17 +6,7 @@ import {
   View,
   div
 } from 'corona/kit';
-import {
-  Slider,
-  SliderIndicator,
-  SliderState,
-  SliderThumb,
-  SliderTrack,
-  type SliderValue,
-  type Theme,
-  h_flex,
-  v_flex
-} from 'corona/base';
+import { type Theme, h_flex, v_flex } from 'corona/base';
 import {
   Button,
   Icon,
@@ -24,6 +14,9 @@ import {
   InputGroupAddon,
   InputGroupInput,
   InputState,
+  Slider,
+  SliderState,
+  type SliderValue,
   Switch
 } from 'corona/component';
 import { type Value, call } from 'corona/plugin';
@@ -389,7 +382,7 @@ export default class Panel extends View {
         .text_xs()
         .text_color(theme.muted_foreground)
         .child(div().w(70).flex_none().font_semibold().child(title))
-        .child(slider(state, theme))
+        .child(slider(state))
         .child(
           div()
             .w_10()
@@ -951,41 +944,8 @@ function tile(theme: Theme, path: string, color: Color): Element {
     .child(new Icon(path).size('small').text_color(color));
 }
 
-/** Gpui-component's slider look: a 6 px groove, the primary fill, a ringed 16 px thumb */
-function slider(state: SliderState, theme: Theme): Element {
-  // Px_2 like corona's dashboard sliders: the thumb overhangs the track by half its width
-  return Slider.new(state)
-    .flex_1()
-    .px_2()
-    .child(
-      SliderTrack.new(state)
-        .flex()
-        .items_center()
-        .h_6()
-        .w_full()
-        .cursor_pointer()
-        .child(
-          SliderIndicator.new(state)
-            .relative()
-            .w_full()
-            .h_1p5()
-            .rounded_full()
-            .bg(tint(theme.primary, 0.2))
-            .range_style((fill) => fill.rounded_full().bg(theme.primary))
-            .child(
-              SliderThumb.new(state)
-                .size_4()
-                .ml(-8)
-                .top(-5)
-                .p(1)
-                .rounded_full()
-                .bg(tint(theme.primary, 0.5))
-                .child(
-                  div().size_full().rounded_full().bg(theme.primary_foreground)
-                )
-            )
-        )
-    );
+function slider(state: SliderState): Element {
+  return new Slider(state).flex_1().px_2();
 }
 
 function headerButton(id: string, icon: string, label: string): Element {
