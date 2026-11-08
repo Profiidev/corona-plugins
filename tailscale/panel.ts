@@ -1,5 +1,5 @@
 import { type Context, type Element, type Props, View, div } from 'corona/kit';
-import { Popover, type Theme, h_flex, v_flex } from 'corona/base';
+import { type Theme, h_flex, v_flex } from 'corona/base';
 import {
   Button,
   ErrorAlert,
@@ -8,6 +8,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
   InputState,
+  Popover,
   Select,
   Switch,
   Tab,
@@ -455,32 +456,17 @@ export default class Panel extends View {
       this.expanded = null;
       cx.notify();
     };
-    return Popover.new(`ts-more-${peer.id}`)
-      .anchor('top_right')
+    return new Popover(`ts-more-${peer.id}`, '⋮')
+      .card_anchor('top_right')
       .open(this.expanded === peer.id)
       .on_open_change((open, cx) => {
         this.expanded = open ? peer.id : null;
         cx.notify();
       })
-      .trigger(
-        iconButton(
-          `ts-more-button-${peer.id}`,
-          'icons/ellipsis-vertical.svg',
-          `Actions for ${peer.name}`
-        ).ghost()
-      )
       .content(
         v_flex()
           .min_w(170)
-          .mt_1()
-          .p_1()
           .gap_0p5()
-          .rounded_lg()
-          .border_1()
-          .border_color(theme.border)
-          .bg(theme.surface)
-          .text_color(theme.surface_foreground)
-          .shadow_md()
           .child(
             menuItem(
               theme,
@@ -648,7 +634,7 @@ export default class Panel extends View {
     method: string,
     args: Value,
     key = method
-  ): Element {
+  ): Element<'Button'> {
     return new Button(id)
       .cursor_pointer()
       .label(label)
@@ -736,7 +722,11 @@ function row(
   return item;
 }
 
-function iconButton(id: string, icon: string, label: string): Element {
+function iconButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()
@@ -747,7 +737,11 @@ function iconButton(id: string, icon: string, label: string): Element {
     .child(new Icon(icon).size('small'));
 }
 
-function headerButton(id: string, icon: string, label: string): Element {
+function headerButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .size_8()
