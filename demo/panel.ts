@@ -1,21 +1,20 @@
 import {
-  type AsyncContext,
   type Context,
   type Element,
+  type Props,
   View,
   div,
   image
-} from 'gpui-kit';
-import type { Props } from 'gpui-shell';
-import { h_flex, v_flex } from 'gpui-base';
-import { Button } from 'gpui-component';
+} from 'corona/kit';
+import { h_flex, v_flex } from 'corona/base';
+import { Button } from 'corona/component';
 import { readFile } from 'fs/promises';
-import { type JsonValue, call, getState } from 'corona/plugin';
+import { type Value, call, getState } from 'corona/plugin';
 import { language, t } from 'corona/i18n';
 import { all } from 'corona/settings';
 import { resumedAt, sleeping } from 'corona/power';
 import { openPath, openUri } from 'corona/desktop';
-import { failed, message } from './util.ts';
+import { message } from './util.ts';
 
 /** The service's methods, one button each */
 const METHODS = [
@@ -44,11 +43,11 @@ type Spawned = {
   stderr: string | null;
 };
 
-function isSpawned(value: JsonValue): value is Spawned {
+function isSpawned(value: Value): value is Spawned {
   return typeof value === 'object' && value !== null && 'pid' in value;
 }
 
-function isStrings(value: JsonValue): value is string[] {
+function isStrings(value: Value): value is string[] {
   return (
     Array.isArray(value) && value.every((item) => typeof item === 'string')
   );
@@ -62,12 +61,13 @@ export default class Panel extends View {
   /** The PNG read through the `fs.read` grant, for `image(Uint8Array)` */
   declare private bytes: Uint8Array | null;
 
-  public init(_props: Props | undefined, cx: AsyncContext): void {
+  public init(_props: Props | undefined, cx: Context): void {
     this.results = {};
     this.busy = new Set();
     this.bytes = null;
-    cx.spawn(async (cx) => {
+    void cx.spawn(async (cx) => {
       try {
+        // Relative to the `fs.read` root `${pluginDir}`; `image(path)` has no such root
         this.bytes = await readFile('assets/gradient.png');
       } catch (error) {
         this.results.image = `✗ ${message(error)}`;
@@ -91,8 +91,7 @@ export default class Panel extends View {
         h_flex()
           .gap_2()
           .items_center()
-          // Plugin-relative path, and the same file as raster bytes
-          .child(image('assets/gradient.png').size_8())
+          // The file as raster bytes
           .child(this.bytes ? image(this.bytes).size_8() : div().size_8())
           .child(
             v_flex()
@@ -163,12 +162,15 @@ export default class Panel extends View {
               .size('small')
               .on_click((_e, cx) => {
                 const path = this.picked?.[0];
-                const error = path
-                  ? openPath(path)
-                  : { message: t('panel.pick_first') };
-                this.results.desktop = error
-                  ? `✗ ${error.message}`
-                  : t('panel.opened', { target: path });
+                try {
+                  if (!path) {
+                    throw new Error(t('panel.pick_first'));
+                  }
+                  openPath(path);
+                  this.results.desktop = t('panel.opened', { target: path });
+                } catch (error) {
+                  this.results.desktop = `✗ ${message(error)}`;
+                }
                 cx.notify();
               })
           )
@@ -177,10 +179,14 @@ export default class Panel extends View {
               .label(t('panel.open_uri'))
               .size('small')
               .on_click((_e, cx) => {
-                const error = openUri('https://example.com/');
-                this.results.desktop = error
-                  ? `✗ ${error.message}`
-                  : t('panel.opened', { target: 'https://example.com/' });
+                try {
+                  openUri('https://example.com/');
+                  this.results.desktop = t('panel.opened', {
+                    target: 'https://example.com/'
+                  });
+                } catch (error) {
+                  this.results.desktop = `✗ ${message(error)}`;
+                }
                 cx.notify();
               })
           )
@@ -246,11 +252,12 @@ export default class Panel extends View {
         this.busy.add(method);
         this.results[method] = t('panel.pending');
         cx.notify();
-        cx.spawn(async (cx) => {
-          const answer = await call(method);
-          this.results[method] = failed(answer)
-            ? `✗ ${answer.message}`
-            : JSON.stringify(answer);
+        void cx.spawn(async (cx) => {
+          try {
+            this.results[method] = JSON.stringify(await call(method));
+          } catch (error) {
+            this.results[method] = `✗ ${message(error)}`;
+          }
           this.busy.delete(method);
           cx.notify();
         });
@@ -259,10 +266,11 @@ export default class Panel extends View {
 
   /** The service picks, since this panel closes for the dialog; see `pick` in service.ts */
   private pick(cx: Context): void {
-    cx.spawn(async (cx) => {
-      const answer = await call('pick');
-      if (failed(answer)) {
-        this.results.desktop = `✗ ${answer.message}`;
+    void cx.spawn(async (cx) => {
+      try {
+        await call('pick');
+      } catch (error) {
+        this.results.desktop = `✗ ${message(error)}`;
       }
       cx.notify();
     });

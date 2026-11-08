@@ -1,7 +1,8 @@
 #:schema /run/current-system/sw/share/corona/schema/plugin.schema.json
 id = "demo"
 name = "Demo"
-version = "0.2.0"
+api = 2
+version = "0.3.0"
 description = "Exercises every plugin API: service, IPC, D-Bus, processes, sockets, fetch, secrets, notifications, i18n, desktop"
 
 # headless, runs while the plugin is enabled; answers `call` and `corona ipc plugin demo <method>`
@@ -70,7 +71,7 @@ fs = { read = [
   "date"
 ] }
 # children get only these host variables; `sleep` inside `sh -c` needs the host's PATH
-process = { env = ["PATH", "HOME"] }
+process = { env = ["PATH"] }
 network = { hosts = ["example.com"], unix = ["/run/tailscale/tailscaled.sock"] }
 clipboard = { write = true }
 # corona owns org.freedesktop.Notifications: notifications go through `corona/notifications`

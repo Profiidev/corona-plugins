@@ -1,7 +1,8 @@
 #:schema /run/current-system/sw/share/corona/schema/plugin.schema.json
 id = "tailscale"
 name = "Tailscale"
-version = "0.1.0"
+api = 2
+version = "0.2.0"
 description = "Tailscale status, devices, exit nodes, Taildrop and preferences"
 
 # talks to tailscaled; pushes its state to the views

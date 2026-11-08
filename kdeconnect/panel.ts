@@ -1,38 +1,21 @@
-import {
-  type AsyncContext,
-  type Context,
-  type Element,
-  type NativeElement,
-  View,
-  div
-} from 'gpui-kit';
-import type { Props } from 'gpui-shell';
-import {
-  Slider,
-  SliderIndicator,
-  SliderState,
-  SliderThumb,
-  SliderTrack,
-  type SliderValue,
-  type Theme,
-  h_flex,
-  v_flex
-} from 'gpui-base';
+import { type Context, type Element, type Props, View, div } from 'corona/kit';
+import { type Theme, h_flex, v_flex } from 'corona/base';
 import {
   Button,
-  type ButtonElement,
   Icon,
   InputGroup,
   InputGroupAddon,
-  type InputGroupElement,
   InputGroupInput,
   InputState,
   Select,
+  Slider,
+  SliderState,
+  type SliderValue,
   Switch,
   Tab,
   TabBar
-} from 'gpui-component';
-import { type JsonValue, call } from 'corona/plugin';
+} from 'corona/component';
+import { type Value, call } from 'corona/plugin';
 import { closePanel } from 'corona/surface';
 import type { CastOptions, Device, Snapshot } from './service.ts';
 import { DEVICE_ICON, ONLINE, dot, label, tint } from './ui.ts';
@@ -95,7 +78,7 @@ export default class Panel extends View {
   /** A slider being dragged is not moved by the state */
   declare private dragging: SliderState | null;
 
-  public init(_props: Props | undefined, cx: AsyncContext): void {
+  public init(_props: Props | undefined, cx: Context): void {
     this.tab = 0;
     this.selected = null;
     this.busy = new Set();
@@ -120,13 +103,13 @@ export default class Panel extends View {
     this.connectAddress = InputState('address:port');
     this.dragging = null;
 
-    this.volume = this.slider({ max: 100, min: 0 }, (value) => {
+    this.volume = this.slider({ max: 100, min: 0 }, (value, cx) => {
       const device = this.device();
       if (device) {
         this.run('volume', { id: device.id, value }, cx);
       }
     });
-    this.seek = this.slider({ max: SEEK_STEPS, min: 0 }, (value) => {
+    this.seek = this.slider({ max: SEEK_STEPS, min: 0 }, (value, cx) => {
       const media = this.device()?.media;
       if (media) {
         this.run(
@@ -150,12 +133,16 @@ export default class Panel extends View {
       ])
     );
 
-    cx.spawn(async (cx) => {
+    void cx.spawn(async (cx) => {
       // The signals keep the state current; this catches up on whatever was missed while closed
-      await call('refresh');
+      // Failures reach the panel through state `msg`
+      await call('refresh').catch(() => {});
       const device = this.device();
       if (device?.address) {
-        await call('adbStatus', { address: device.address, id: device.id });
+        await call('adbStatus', {
+          address: device.address,
+          id: device.id
+        }).catch(() => {});
       }
       cx.notify();
     });
@@ -176,7 +163,7 @@ export default class Panel extends View {
   /** A slider whose `release` runs `commit`, and whose drag stops the state moving it */
   private slider(
     options: { min: number; max: number; step?: number; value?: number },
-    commit: (value: number) => void,
+    commit: (value: number, cx: Context) => void,
     change?: (value: number, cx: Context) => void
   ): SliderState {
     const state = SliderState.new(options);
@@ -184,9 +171,9 @@ export default class Panel extends View {
       this.dragging = state;
       change?.(single(value), cx);
     });
-    state.on('release', (value) => {
+    state.on('release', (value, cx) => {
       this.dragging = null;
-      commit(single(value));
+      commit(single(value), cx);
     });
     return state;
   }
@@ -453,7 +440,7 @@ export default class Panel extends View {
                 .disabled(off || device.volume === null)
                 .on_click((_e, cx) => this.run('mute', { id }, cx))
             )
-            .child(slider(this.volume, theme, off || device.volume === null))
+            .child(slider(this.volume, off || device.volume === null))
             .child(
               div()
                 .w_10()
@@ -555,7 +542,7 @@ export default class Panel extends View {
                     .text_right()
                     .child(clock(noMedia ? 0 : now))
                 )
-                .child(slider(this.seek, theme, noMedia || !media.canSeek))
+                .child(slider(this.seek, noMedia || !media.canSeek))
                 .child(
                   div()
                     .w_8()
@@ -735,7 +722,7 @@ export default class Panel extends View {
                 .text_xs()
                 .text_color(theme.muted_foreground)
                 .child(div().w_8().font_semibold().child(q.short))
-                .child(slider(this.quality[q.key], theme, false))
+                .child(slider(this.quality[q.key], false))
                 .child(
                   div()
                     .w_16()
@@ -1181,8 +1168,8 @@ export default class Panel extends View {
     id: string,
     label: string,
     method: string,
-    args: JsonValue
-  ): ButtonElement {
+    args: Value
+  ): Element<'Button'> {
     return new Button(id)
       .cursor_pointer()
       .size('small')
@@ -1194,7 +1181,7 @@ export default class Panel extends View {
   /** Calls the service, which reports the outcome through state `msg`; `done` runs on success */
   public run(
     method: string,
-    args: JsonValue,
+    args: Value,
     cx: Context,
     key = method,
     done?: () => void
@@ -1204,13 +1191,16 @@ export default class Panel extends View {
     }
     this.busy.add(key);
     cx.notify();
-    cx.spawn(async (cx) => {
-      const answer = await call(method, args);
-      if (!(answer && typeof answer === 'object' && 'message' in answer)) {
+    void cx.spawn(async (cx) => {
+      try {
+        await call(method, args);
         done?.();
+      } catch {
+        // The service reports the failure through state `msg`
+      } finally {
+        this.busy.delete(key);
+        cx.notify();
       }
-      this.busy.delete(key);
-      cx.notify();
     });
   }
 }
@@ -1256,7 +1246,7 @@ function group(theme: Theme, rows: Element[]): Element {
     );
 }
 
-function scroll(id: string): NativeElement {
+function scroll(id: string): Element<'div'> {
   return v_flex().id(id).flex_1().min_h_0().overflow_y_scroll().gap_4();
 }
 
@@ -1299,49 +1289,23 @@ function input(
   id: string,
   state: InputState,
   label: string
-): InputGroupElement {
+): Element<'InputGroup'> {
   return new InputGroup(id).input(new InputGroupInput(state).aria_label(label));
 }
 
-/** Gpui-component's slider look: a 6 px groove, the primary fill, a ringed 16 px thumb */
-function slider(state: SliderState, theme: Theme, disabled: boolean): Element {
-  // Px_2 like corona's dashboard sliders: the thumb overhangs the track by half its width
-  return Slider.new(state)
+function slider(state: SliderState, disabled: boolean): Element {
+  return new Slider(state)
     .flex_1()
     .px_2()
-    .opacity(disabled ? 0.5 : 1)
-    .child(
-      SliderTrack.new(state)
-        .flex()
-        .items_center()
-        .h_6()
-        .w_full()
-        .when(!disabled, (el) => el.cursor_pointer())
-        .child(
-          SliderIndicator.new(state)
-            .relative()
-            .w_full()
-            .h_1p5()
-            .rounded_full()
-            .bg(tint(theme.primary, 0.2))
-            .range_style((fill) => fill.rounded_full().bg(theme.primary))
-            .child(
-              SliderThumb.new(state)
-                .size_4()
-                .ml(-8)
-                .top(-5)
-                .p(1)
-                .rounded_full()
-                .bg(tint(theme.primary, 0.5))
-                .child(
-                  div().size_full().rounded_full().bg(theme.primary_foreground)
-                )
-            )
-        )
-    );
+    .disabled(disabled)
+    .opacity(disabled ? 0.5 : 1);
 }
 
-function headerButton(id: string, icon: string, label: string): ButtonElement {
+function headerButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .size_8()
@@ -1350,7 +1314,11 @@ function headerButton(id: string, icon: string, label: string): ButtonElement {
     .child(new Icon(icon).size('small'));
 }
 
-function iconButton(id: string, icon: string, label: string): ButtonElement {
+function iconButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()

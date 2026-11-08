@@ -1,34 +1,25 @@
 import {
-  type AsyncContext,
   type Color,
   type Context,
   type Element,
+  type Props,
   View,
   div
-} from 'gpui-kit';
-import type { Props } from 'gpui-shell';
-import {
-  Slider,
-  SliderIndicator,
-  SliderState,
-  SliderThumb,
-  SliderTrack,
-  type SliderValue,
-  type Theme,
-  h_flex,
-  v_flex
-} from 'gpui-base';
+} from 'corona/kit';
+import { type Theme, h_flex, v_flex } from 'corona/base';
 import {
   Button,
-  type ButtonElement,
   Icon,
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputState,
+  Slider,
+  SliderState,
+  type SliderValue,
   Switch
-} from 'gpui-component';
-import { type JsonValue, call } from 'corona/plugin';
+} from 'corona/component';
+import { type Value, call } from 'corona/plugin';
 import { get } from 'corona/settings';
 import { closePanel } from 'corona/surface';
 import type { Entity, Listed, Snapshot, Status } from './service.ts';
@@ -123,7 +114,7 @@ export default class Panel extends View {
   declare private draft: Draft | null;
   declare private busy: Set<string>;
 
-  public init(_props: Props | undefined, _cx: AsyncContext): void {
+  public init(_props: Props | undefined): void {
     this.browsing = false;
     this.all = null;
     this.query = '';
@@ -391,7 +382,7 @@ export default class Panel extends View {
         .text_xs()
         .text_color(theme.muted_foreground)
         .child(div().w(70).flex_none().font_semibold().child(title))
-        .child(slider(state, theme))
+        .child(slider(state))
         .child(
           div()
             .w_10()
@@ -545,8 +536,9 @@ export default class Panel extends View {
     }
     this.busy.add('browse');
     cx.notify();
-    cx.spawn(async (cx) => {
-      const answer = await call('browse');
+    void cx.spawn(async (cx) => {
+      // The service reports a failure through state `msg`
+      const answer = await call('browse').catch((): null => null);
       this.busy.delete('browse');
       if (isListed(answer)) {
         this.all = answer;
@@ -627,7 +619,7 @@ export default class Panel extends View {
     if (!d) {
       return;
     }
-    const data: Record<string, JsonValue> = {};
+    const data: Record<string, Value> = {};
     if (d.bri) {
       data.brightness = single(d.bri.value());
     }
@@ -664,23 +656,28 @@ export default class Panel extends View {
     entity: string,
     domain: string,
     service: string,
-    data: JsonValue,
+    data: Value,
     cx: Context
   ): void {
     this.run('call', { data, domain, entity, service }, cx, entity);
   }
 
   /** Calls the service; errors come back through state `msg` */
-  public run(method: string, args: JsonValue, cx: Context, key = method): void {
+  public run(method: string, args: Value, cx: Context, key = method): void {
     if (this.busy.has(key)) {
       return;
     }
     this.busy.add(key);
     cx.notify();
-    cx.spawn(async (cx) => {
-      await call(method, args);
-      this.busy.delete(key);
-      cx.notify();
+    void cx.spawn(async (cx) => {
+      try {
+        await call(method, args);
+      } catch {
+        // The service reports the failure through state `msg`
+      } finally {
+        this.busy.delete(key);
+        cx.notify();
+      }
     });
   }
 }
@@ -947,44 +944,15 @@ function tile(theme: Theme, path: string, color: Color): Element {
     .child(new Icon(path).size('small').text_color(color));
 }
 
-/** Gpui-component's slider look: a 6 px groove, the primary fill, a ringed 16 px thumb */
-function slider(state: SliderState, theme: Theme): Element {
-  // Px_2 like corona's dashboard sliders: the thumb overhangs the track by half its width
-  return Slider.new(state)
-    .flex_1()
-    .px_2()
-    .child(
-      SliderTrack.new(state)
-        .flex()
-        .items_center()
-        .h_6()
-        .w_full()
-        .cursor_pointer()
-        .child(
-          SliderIndicator.new(state)
-            .relative()
-            .w_full()
-            .h_1p5()
-            .rounded_full()
-            .bg(tint(theme.primary, 0.2))
-            .range_style((fill) => fill.rounded_full().bg(theme.primary))
-            .child(
-              SliderThumb.new(state)
-                .size_4()
-                .ml(-8)
-                .top(-5)
-                .p(1)
-                .rounded_full()
-                .bg(tint(theme.primary, 0.5))
-                .child(
-                  div().size_full().rounded_full().bg(theme.primary_foreground)
-                )
-            )
-        )
-    );
+function slider(state: SliderState): Element {
+  return new Slider(state).flex_1().px_2();
 }
 
-function headerButton(id: string, icon: string, label: string): ButtonElement {
+function headerButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .size_8()
@@ -994,7 +962,11 @@ function headerButton(id: string, icon: string, label: string): ButtonElement {
 }
 
 /** A small outlined button with an icon and a word, for run and scene rows */
-function actionButton(id: string, glyph: string, text: string): ButtonElement {
+function actionButton(
+  id: string,
+  glyph: string,
+  text: string
+): Element<'Button'> {
   return new Button(id)
     .cursor_pointer()
     .outline()
@@ -1008,7 +980,11 @@ function actionButton(id: string, glyph: string, text: string): ButtonElement {
     );
 }
 
-function iconButton(id: string, icon: string, label: string): ButtonElement {
+function iconButton(
+  id: string,
+  icon: string,
+  label: string
+): Element<'Button'> {
   // Square, like the design's icon-sm: 28 px without padding
   return new Button(id)
     .cursor_pointer()

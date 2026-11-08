@@ -1,28 +1,16 @@
-import {
-  type Call,
-  type JsonValue,
-  fail,
-  nextCall,
-  reply
-} from 'corona/plugin';
+import { type Call, type Value, fail, onCall, reply } from 'corona/plugin';
 import { notify } from 'corona/notifications';
 import process from 'process';
 
 /** What `call(method)` in a view and `corona ipc plugin positron <method>` reach */
-const methods: Record<string, () => Promise<JsonValue>> = {
+const methods: Record<string, () => Promise<Value>> = {
   hide: async () => run('hide'),
   show: async () => run('show'),
   toggle: async () => run('toggle')
 };
 
 export default async function main(): Promise<void> {
-  while (true) {
-    const call = await nextCall();
-    if ('message' in call) {
-      break;
-    } // The service is stopping
-    void answer(call);
-  }
+  onCall((call) => void answer(call));
 }
 
 async function answer({ id, method }: Call): Promise<void> {
@@ -39,7 +27,7 @@ async function answer({ id, method }: Call): Promise<void> {
 }
 
 /** `positron ipc <action>`; positron has to be running, it is not started here */
-async function run(action: string): Promise<JsonValue> {
+async function run(action: string): Promise<Value> {
   try {
     const out = await process.run('positron', ['ipc', action]);
     if (out.code === 0) {

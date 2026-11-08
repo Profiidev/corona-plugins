@@ -1,29 +1,29 @@
-import { type JsonValue, getState } from 'corona/plugin';
+import { type Value, getState } from 'corona/plugin';
 import type { Cast, CastOptions, Snapshot } from './service.ts';
 
-export function isObject(value: JsonValue): value is Record<string, JsonValue> {
+export function isObject(value: Value): value is Record<string, Value> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function isStrings(value: JsonValue): value is string[] {
+export function isStrings(value: Value): value is string[] {
   return (
     Array.isArray(value) && value.every((item) => typeof item === 'string')
   );
 }
 
-export function isCastOptions(value: JsonValue): value is CastOptions {
+export function isCastOptions(value: Value): value is CastOptions {
   return isObject(value) && typeof value.res === 'number';
 }
 
-function isSnapshot(value: JsonValue): value is Snapshot {
+function isSnapshot(value: Value): value is Snapshot {
   return isObject(value) && Array.isArray(value.devices);
 }
 
-function isCasts(value: JsonValue): value is Record<string, Cast> {
+function isCasts(value: Value): value is Record<string, Cast> {
   return isObject(value) && Object.values(value).every(isObject);
 }
 
-function isVolumes(value: JsonValue): value is Record<string, number> {
+function isVolumes(value: Value): value is Record<string, number> {
   return (
     isObject(value) && Object.values(value).every((v) => typeof v === 'number')
   );

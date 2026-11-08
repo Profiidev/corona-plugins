@@ -1,5 +1,5 @@
-import { type Context, type Element, View, div } from 'gpui-kit';
-import { Icon } from 'gpui-component';
+import { type Context, type Element, View, div } from 'corona/kit';
+import { Icon } from 'corona/component';
 import { bar, togglePanel } from 'corona/surface';
 import { snapshot } from './state.ts';
 import { STATUS } from './ui.ts';
@@ -26,12 +26,7 @@ export default class Widget extends View {
       .cursor_pointer()
       .tooltip(`Home Assistant: ${STATUS[status][0]}`)
       .hover((el) => el.bg(theme.accent))
-      .on_click(() => {
-        const error = togglePanel('main');
-        if (error) {
-          console.error(error.message);
-        }
-      })
+      .on_click(() => togglePanel('main'))
       .child(
         new Icon('icons/house.svg')
           .size('small')
