@@ -172,21 +172,21 @@ dbus = { session = ["org.kde.kdeconnect"] }
 printing = { print = true }
 ```
 
-| Key                 | Fields                                                              | Grants                                                                                                                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `corona`            | list of module names                                                | The `corona/<name>` modules in [10](#10-modules-granted-by-capabilitiescorona). An unknown name fails the load: "plugin `<id>` is granted unknown module `<name>`".                                                       |
-| `storage`           | bool, **default `true`**                                            | `localStorage`. The one grant given by default; set `false` to withdraw it.                                                                                                                                               |
-| `fs.read`           | paths                                                               | Directories `fs/promises` may read, and `image(path)` / `Avatar.src` may show.                                                                                                                                            |
-| `fs.write`          | paths                                                               | Directories that may be written: absolute, or under `${dataDir}`. Never the plugin directory, other plugins, corona's state or config, home dotfiles, or places that run at login. Such a root is dropped with a warning. |
-| `fs.execute`        | list of commands, or `"*"`                                          | Commands `process.run` and `spawn` may start. Only the string `"*"` means all; any other string is an error.                                                                                                              |
-| `network.hosts`     | hosts                                                               | Hosts `fetch` and `websocket` may reach (public addresses only).                                                                                                                                                          |
-| `network.lan_hosts` | hosts                                                               | Like `hosts`, but the name may also resolve to the local network. Loopback and link-local stay closed.                                                                                                                    |
-| `network.http`      | list of `{ host, methods, scheme?, port?, paths?, path_prefixes? }` | HTTP requests limited by host, method and path. `scheme` defaults to `https`.                                                                                                                                             |
-| `network.unix`      | socket paths                                                        | Unix sockets for `net.connect({ path })` and `fetch(..., { unix })`, by exact path. Never a socket the plugin could plant, nor the session's buses, agents or compositor.                                                 |
-| `clipboard`         | `read`, `write`                                                     | Clipboard access from views.                                                                                                                                                                                              |
-| `process`           | `exit`, `env`                                                       | `exit` allows `process.exit()`. `env` lists the host variables passed to children, and the only names a child's `env` option may set. Children otherwise get an empty environment. Variables like `LD_*` are refused. `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` can be listed too, but pass the user's value only: a child's `env` option cannot set them.     |
-| `printing`          | `print`, `manage`                                                   | Beyond listing: `print` allows `printFile`; `manage` allows scanning, adding and pausing printers and canceling jobs.                                                                                                     |
-| `dbus`              | `session`, `system` (bus names)                                     | The bus names `corona/dbus` may call, read and receive signals from. The module exists only with this table.                                                                                                              |
+| Key                 | Fields                                                              | Grants                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `corona`            | list of module names                                                | The `corona/<name>` modules in [10](#10-modules-granted-by-capabilitiescorona). An unknown name fails the load: "plugin `<id>` is granted unknown module `<name>`".                                                                                                                                                                                                                                |
+| `storage`           | bool, **default `true`**                                            | `localStorage`. The one grant given by default; set `false` to withdraw it.                                                                                                                                                                                                                                                                                                                        |
+| `fs.read`           | paths                                                               | Directories `fs/promises` may read, and `image(path)` / `Avatar.src` may show.                                                                                                                                                                                                                                                                                                                     |
+| `fs.write`          | paths                                                               | Directories that may be written: absolute, or under `${dataDir}`. Never the plugin directory, other plugins, corona's state or config, home dotfiles, or places that run at login. Such a root is dropped with a warning.                                                                                                                                                                          |
+| `fs.execute`        | list of commands, or `"*"`                                          | Commands `process.run` and `spawn` may start. Only the string `"*"` means all; any other string is an error.                                                                                                                                                                                                                                                                                       |
+| `network.hosts`     | hosts                                                               | Hosts `fetch` and `websocket` may reach (public addresses only).                                                                                                                                                                                                                                                                                                                                   |
+| `network.lan_hosts` | hosts                                                               | Like `hosts`, but the name may also resolve to the local network. Loopback and link-local stay closed.                                                                                                                                                                                                                                                                                             |
+| `network.http`      | list of `{ host, methods, scheme?, port?, paths?, path_prefixes? }` | HTTP requests limited by host, method and path. `scheme` defaults to `https`.                                                                                                                                                                                                                                                                                                                      |
+| `network.unix`      | socket paths                                                        | Unix sockets for `net.connect({ path })` and `fetch(..., { unix })`, by exact path. Never a socket the plugin could plant, nor the session's buses, agents or compositor.                                                                                                                                                                                                                          |
+| `clipboard`         | `read`, `write`                                                     | Clipboard access from views.                                                                                                                                                                                                                                                                                                                                                                       |
+| `process`           | `exit`, `env`                                                       | `exit` allows `process.exit()`. `env` lists the host variables passed to children, and the only names a child's `env` option may set. Children otherwise get an empty environment. Variables like `LD_*` are refused. `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` can be listed too, but pass the user's value only: a child's `env` option cannot set them. |
+| `printing`          | `print`, `manage`                                                   | Beyond listing: `print` allows `printFile`; `manage` allows scanning, adding and pausing printers and canceling jobs.                                                                                                                                                                                                                                                                              |
+| `dbus`              | `session`, `system` (bus names)                                     | The bus names `corona/dbus` may call, read and receive signals from. The module exists only with this table.                                                                                                                                                                                                                                                                                       |
 
 **Placeholders.** `${pluginDir}` and `${dataDir}` work in `fs` and `network.unix` paths; any other `${…}` is an error. `${setting:<key>}` works in `network.hosts`, `lan_hosts` and `http[].host`: it expands to the host of text setting `<key>` (a URL or a bare host with optional port), and grants nothing while the setting is empty. The key must name a `text` setting. Only values the user set count, never the plugin's defaults.
 
@@ -507,9 +507,9 @@ corona = ["launcher", "desktop"] # `desktop` for `openPath` below
 [commands.recent]
 title = "Recent Projects"
 subtitle = "Open a project"
-icon = "folder"                  # a bundled icon's kebab-case name
-keywords = ["zed", "code"]       # found by these, not shown
-section = "suggestions"          # where it lands in the root list
+icon = "folder" # a bundled icon's kebab-case name
+keywords = ["zed", "code"] # found by these, not shown
+section = "suggestions" # where it lands in the root list
 scope = { prefix = "rp", label = "Projects", placeholder = "Search projects" }
 
 [commands.note]
@@ -517,7 +517,10 @@ title = "New Note"
 icon = "pencil"
 args = [
   { name = "text", kind = "text", optional = true },
-  { name = "tag", kind = "choice", choices = ["work", "home"], optional = true }
+  { name = "tag", kind = "choice", choices = [
+    "work",
+    "home"
+  ], optional = true }
 ]
 ```
 
@@ -542,16 +545,16 @@ export default async function main() {
 }
 ```
 
-| Reply                                          | Effect                                                                 |
-| ---------------------------------------------- | ---------------------------------------------------------------------- |
-| nothing                                        | Closes the launcher.                                                   |
-| `{ push: page }`                               | Shows a page you made with `list`, `form` or `detail`.                 |
-| `{ pop: true }`                                | Back to the previous page.                                             |
-| `{ keepOpen: true }`                           | Stays open and refreshes.                                              |
-| `{ toast: { title, message?, kind? } }`        | Stays open with a toast; `kind` is `success` (default), `failure` or `progress`. |
-| `{ copy: { text } }`, `{ copy: { image, mime? } }` | Copies; `image` is base64, `mime` defaults to `image/png`.         |
-| `{ paste: ... }`                               | As `copy`, then closes, refocuses the previous window and pastes.      |
-| `{ hud: { text, icon? } }`                     | Closes and shows a pill.                                               |
+| Reply                                              | Effect                                                                           |
+| -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| nothing                                            | Closes the launcher.                                                             |
+| `{ push: page }`                                   | Shows a page you made with `list`, `form` or `detail`.                           |
+| `{ pop: true }`                                    | Back to the previous page.                                                       |
+| `{ keepOpen: true }`                               | Stays open and refreshes.                                                        |
+| `{ toast: { title, message?, kind? } }`            | Stays open with a toast; `kind` is `success` (default), `failure` or `progress`. |
+| `{ copy: { text } }`, `{ copy: { image, mime? } }` | Copies; `image` is base64, `mime` defaults to `image/png`.                       |
+| `{ paste: ... }`                                   | As `copy`, then closes, refocuses the previous window and pastes.                |
+| `{ hud: { text, icon? } }`                         | Closes and shows a pill.                                                         |
 
 A throw or a rejected promise shows an error toast. A handler has 30 seconds.
 
@@ -560,7 +563,9 @@ onRun('sync', async () => {
   try {
     await sync();
   } catch (e) {
-    return { toast: { title: 'Sync failed', message: String(e), kind: 'failure' } };
+    return {
+      toast: { title: 'Sync failed', message: String(e), kind: 'failure' }
+    };
   }
   return { toast: { title: 'Synced' } }; // stays open
 });
@@ -591,17 +596,35 @@ onRun('recent', async () => {
         accessories: [{ tag: { text: p.lang, tone: 'ok' } }, { text: p.when }],
         detail: {
           code: p.readme,
-          metadata: [['Path', p.path], ['Opened', p.when]],
+          metadata: [
+            ['Path', p.path],
+            ['Opened', p.when]
+          ],
           tags: [[p.lang, null]]
         },
         actions: [
           // the first action runs on Enter, the rest are in the action panel
-          { title: 'Open', run: () => { openPath(p.path); return { hud: { text: `Opened ${p.name}` } }; } },
-          { title: 'Copy path', shortcut: 'ctrl-c', run: () => ({ copy: { text: p.path } }) },
+          {
+            title: 'Open',
+            run: () => {
+              openPath(p.path);
+              return { hud: { text: `Opened ${p.name}` } };
+            }
+          },
+          {
+            title: 'Copy path',
+            shortcut: 'ctrl-c',
+            run: () => ({ copy: { text: p.path } })
+          },
           {
             title: 'Remove',
             destructive: true,
-            confirm: { title: 'Remove?', message: p.path, button: 'Remove', skippable: true },
+            confirm: {
+              title: 'Remove?',
+              message: p.path,
+              button: 'Remove',
+              skippable: true
+            },
             keepOpen: true, // stays open after running
             run: async () => {
               await removeProject(p.path);
@@ -626,11 +649,21 @@ onRun('recent', async () => {
 Icons are objects:
 
 ```ts
-{ name: 'folder' }                  // a bundled icon, kebab-case
-{ app: ['dev.zed.Zed', 'zed'] }     // desktop entry or window class names
-{ image: 'assets/logo.png' }        // a file in the plugin directory
-{ glyph: '🚀' }                     // an emoji or symbol
-{ swatch: '#ff8800' }               // a colour
+{
+  name: 'folder';
+} // a bundled icon, kebab-case
+{
+  app: ['dev.zed.Zed', 'zed'];
+} // desktop entry or window class names
+{
+  image: 'assets/logo.png';
+} // a file in the plugin directory
+{
+  glyph: '🚀';
+} // an emoji or symbol
+{
+  swatch: '#ff8800';
+} // a colour
 ```
 
 #### Grid
@@ -701,7 +734,10 @@ onRun('files', () => {
     // a dropdown in the search bar
     filter: {
       label: 'Sort',
-      options: [{ id: 'name', title: 'Name' }, { id: 'date', title: 'Date' }]
+      options: [
+        { id: 'name', title: 'Name' },
+        { id: 'date', title: 'Date' }
+      ]
     }
   });
   // `index` is the picked option's; return the rows, or call `page.setRows`
@@ -721,9 +757,20 @@ function noteForm() {
     message: 'Saved to your notes folder', // shown above the fields
     fields: [
       { id: 'title', label: 'Title', required: true },
-      { id: 'body', label: 'Body', kind: 'textarea', placeholder: 'Write something' },
+      {
+        id: 'body',
+        label: 'Body',
+        kind: 'textarea',
+        placeholder: 'Write something'
+      },
       { id: 'secret', label: 'Token', kind: 'password' },
-      { id: 'tag', label: 'Tag', kind: 'dropdown', value: 'work', options: ['work', 'home'] }
+      {
+        id: 'tag',
+        label: 'Tag',
+        kind: 'dropdown',
+        value: 'work',
+        options: ['work', 'home']
+      }
     ],
     submitLabel: 'Save',
     // the values by field id, all strings
@@ -750,7 +797,10 @@ onRun('server', async () => {
     push: detail({
       title: s.name,
       markdown: `# ${s.name}\n\nUp ${s.uptime}`,
-      metadata: [['CPU', `${s.cpu}%`], ['RAM', s.ram]], // the sidebar
+      metadata: [
+        ['CPU', `${s.cpu}%`],
+        ['RAM', s.ram]
+      ], // the sidebar
       actions: [
         { title: 'Restart', destructive: true, run: () => restart(s.name) },
         { title: 'Copy address', run: () => ({ copy: { text: s.address } }) }
@@ -777,13 +827,21 @@ rows: repos.map((r) => ({
           rows: (await branches(r)).map((b) => ({
             id: b,
             title: b,
-            actions: [{ title: 'Checkout', run: async () => { await checkout(r, b); return { pop: true }; } }]
+            actions: [
+              {
+                title: 'Checkout',
+                run: async () => {
+                  await checkout(r, b);
+                  return { pop: true };
+                }
+              }
+            ]
           }))
         })
       })
     }
   ]
-}))
+}));
 ```
 
 ### `mpris`
