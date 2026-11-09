@@ -1,0 +1,43 @@
+#:schema /run/current-system/sw/share/corona/schema/plugin.schema.json
+id = "zed-recents"
+name = "Zed Recents"
+api = 2
+version = "0.1.0"
+description = "Open recent Zed projects from the launcher"
+
+# reads Zed's workspace database with `sqlite3` and answers the launcher command
+service = "service.ts"
+
+[commands.recent]
+title = "Zed Recent Projects"
+subtitle = "Open a recent Zed project"
+icon = "folder-open"
+keywords = ["zed", "editor", "code", "project"]
+section = "commands"
+scope = { prefix = "zed", label = "Zed", placeholder = "Search recent projects" }
+
+[[settings]]
+key = "window"
+label = "Window"
+description = "Where a project opens"
+type = "select"
+default = "default"
+options = [
+  { value = "default", label = "Zed's default" },
+  { value = "new", label = "New window" },
+  { value = "add", label = "Add to current window" }
+]
+
+[capabilities]
+corona = ["launcher"]
+# `sh` finds the databases and starts zed detached, `sqlite3` reads and edits them
+fs = { execute = ["sh", "sqlite3"] }
+# HOME locates the zed databases; zed is a GUI app: it needs the session to find its display
+process = { env = [
+  "PATH",
+  "HOME",
+  "XDG_RUNTIME_DIR",
+  "WAYLAND_DISPLAY",
+  "DISPLAY",
+  "DBUS_SESSION_BUS_ADDRESS"
+] }
