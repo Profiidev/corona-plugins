@@ -184,7 +184,7 @@ printing = { print = true }
 | `network.http`      | list of `{ host, methods, scheme?, port?, paths?, path_prefixes? }` | HTTP requests limited by host, method and path. `scheme` defaults to `https`.                                                                                                                                             |
 | `network.unix`      | socket paths                                                        | Unix sockets for `net.connect({ path })` and `fetch(..., { unix })`, by exact path. Never a socket the plugin could plant, nor the session's buses, agents or compositor.                                                 |
 | `clipboard`         | `read`, `write`                                                     | Clipboard access from views.                                                                                                                                                                                              |
-| `process`           | `exit`, `env`                                                       | `exit` allows `process.exit()`. `env` lists the host variables passed to children, and the only names a child's `env` option may set. Children otherwise get an empty environment. Variables like `LD_*` are refused.     |
+| `process`           | `exit`, `env`                                                       | `exit` allows `process.exit()`. `env` lists the host variables passed to children, and the only names a child's `env` option may set. Children otherwise get an empty environment. Variables like `LD_*` are refused. `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` can be listed too, but pass the user's value only: a child's `env` option cannot set them.     |
 | `printing`          | `print`, `manage`                                                   | Beyond listing: `print` allows `printFile`; `manage` allows scanning, adding and pausing printers and canceling jobs.                                                                                                     |
 | `dbus`              | `session`, `system` (bus names)                                     | The bus names `corona/dbus` may call, read and receive signals from. The module exists only with this table.                                                                                                              |
 
@@ -525,7 +525,7 @@ args = [
 
 #### `onRun(name, handler)`
 
-`handler(args)` runs when the user picks the command. `args` holds the typed arguments in manifest order, `null` for a skipped optional one. It may be `async`. What it returns is what the launcher does next; the first key set counts, nothing closes it.
+`handler(args)` runs when the user picks the command. `args` holds the typed arguments in manifest order, `null` for a skipped optional one. It may be `async`. What it returns is what the launcher does next: one key of the table below (two keys are an error), or nothing, which closes it.
 
 ```ts
 import { onRun, form } from 'corona/launcher';
