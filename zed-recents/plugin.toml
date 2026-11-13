@@ -29,15 +29,9 @@ options = [
 ]
 
 [capabilities]
-corona = ["launcher"]
-# `sh` finds the databases and starts zed detached, `sqlite3` reads and edits them
-fs = { execute = ["sh", "sqlite3"] }
-# HOME locates the zed databases; zed is a GUI app: it needs the session to find its display
-process = { env = [
-  "PATH",
-  "HOME",
-  "XDG_RUNTIME_DIR",
-  "WAYLAND_DISPLAY",
-  "DISPLAY",
-  "DBUS_SESSION_BUS_ADDRESS"
-] }
+# `desktop` launches zed with the session's environment
+corona = ["launcher", "desktop"]
+# `sh` finds the databases and the zed binary, `sqlite3` reads and edits them
+fs = { execute = ["sh", "sqlite3", "zed", "zeditor", "zedit"] }
+# HOME locates the zed databases, PATH the zed binary
+process = { env = ["PATH", "HOME"] }
