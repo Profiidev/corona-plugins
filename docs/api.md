@@ -481,6 +481,7 @@ Add the module name to `corona = [...]`. Every `Signal` below is read with `x()`
 ### `desktop`
 
 - `openPath(path)` opens a readable file in the default app; `openUri(uri)` opens `https:`, `mailto:` and the like (both sync).
+- `launch(argv)` starts an app as the launcher does: in its own scope with the user's whole session environment, unlike `process`, whose children get a cleared one. `argv[0]` must be in `fs.execute` (sync).
 - `listenRedirect(options?): Listening` listens once on `127.0.0.1` for an OAuth redirect (`timeoutMs` default 5 minutes, at most 10). Returns `{ id, port, redirectUri }`.
 - `onRedirect(id, cb): () => void`: `cb` runs once with a `Redirect` (`{ path, query }`) or `{ message }` on timeout or failure.
 - `pickFiles(options?): Promise<string[] | null>`: `{ multiple?, directory?, acceptLabel? }`; `null` on cancel. The plugin may read what was picked until it restarts.

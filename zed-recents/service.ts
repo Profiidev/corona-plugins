@@ -1,3 +1,4 @@
+import { launch } from 'corona/desktop';
 import { type Reply, type Row, list, onRun } from 'corona/launcher';
 import { get } from 'corona/settings';
 import path from 'path';
@@ -25,8 +26,8 @@ const QUERY = `SELECT w.paths, w.timestamp, rc.kind, rc.host, rc.port, rc.user, 
 
 // Children get no HOME (it cannot be granted), so look it up
 // The zed binary is called `zed`, `zeditor` or `zedit` depending on the distro
-const LAUNCH =
-  'for c in zed zeditor zedit; do command -v "$c" >/dev/null && exec setsid -f "$c" "$@"; done; echo "zed not found in PATH" >&2; exit 127';
+const FIND =
+  'for c in zed zeditor zedit; do command -v "$c" >/dev/null && echo "$c" && exit; done; echo "zed not found in PATH" >&2; exit 127';
 
 // 0 = dir, 1 = file, anything else = missing
 const CLASSIFY =
@@ -188,12 +189,18 @@ async function open(project: Project): Promise<Reply> {
       }
     };
   }
-  const out = await sh(LAUNCH, [...flag, target]);
-  if (out.code !== 0) {
+  const found = await sh(FIND);
+  try {
+    if (found.code !== 0) {
+      throw new Error(found.stderr.trim() || `exit ${found.code}`);
+    }
+    // Launched like the launcher's apps: with the whole session environment
+    launch([found.stdout.trim(), ...flag, target]);
+  } catch (error) {
     return {
       toast: {
         kind: 'failure',
-        message: out.stderr.trim() || `exit ${out.code}`,
+        message: error instanceof Error ? error.message : String(error),
         title: 'Failed to open project'
       }
     };
