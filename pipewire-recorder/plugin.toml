@@ -1,0 +1,94 @@
+#:schema /run/current-system/sw/share/corona/schema/plugin.schema.json
+id = "pipewire-recorder"
+name = "PipeWire Recorder"
+api = 2
+version = "0.1.0"
+description = "Automatic lossless PipeWire audio stream recorder with MPRIS metadata, cover art, and virtual capture sink"
+
+# spawns `pipewire-recorder run --ipc` while enabled; stops cleanly when disabled
+service = "service.ts"
+
+# a bar button; shown as `pipewire-recorder:recorder` in a bar
+[widgets.recorder]
+view = "widget.ts"
+name = "PipeWire Recorder"
+
+# opened by the widget, as `pipewire-recorder:main`
+[panels.main]
+view = "panel.ts"
+name = "PipeWire Recorder"
+width = 440
+height = 560
+
+[[settings]]
+key = "autoStart"
+label = "Start recording automatically"
+description = "Begin capturing matching tracks immediately when the plugin starts."
+type = "toggle"
+default = true
+
+[[settings]]
+key = "outputDir"
+label = "Output folder"
+description = "Directory where recorded FLAC tracks are saved."
+type = "text"
+default = "~/Music/Spotify"
+placeholder = "~/Music/Spotify"
+
+[[settings]]
+key = "mprisPlayer"
+label = "MPRIS player"
+description = "Target MPRIS2 player name on the session D-Bus (e.g. spotify, firefox, vlc)."
+type = "text"
+default = "spotify"
+placeholder = "spotify"
+
+[[settings]]
+key = "pipewireTarget"
+label = "PipeWire stream target"
+description = "PipeWire Stream/Output/Audio matcher (app name, binary, node name, or serial)."
+type = "text"
+default = "spotify"
+placeholder = "spotify"
+
+[[settings]]
+key = "virtualSink"
+label = "Virtual capture sink"
+description = "Keep the player at 100% for bit-exact recording while controlling listening volume via a separate loopback stream."
+type = "toggle"
+default = false
+
+[[settings]]
+key = "enforceUnityVolume"
+label = "Enforce 100% stream volume"
+description = "Reset player/stream volume to 100% at track start and discard takes if attenuated."
+type = "toggle"
+default = true
+
+[[settings]]
+key = "notifyOnSave"
+label = "Notify on saved track"
+description = "Show a desktop notification whenever a complete FLAC track is saved."
+type = "toggle"
+default = false
+
+[[settings]]
+key = "hideWhenIdle"
+label = "Hide bar button when idle"
+description = "Leave the bar unless a track is actively being recorded."
+type = "toggle"
+default = false
+
+[capabilities]
+corona = ["pipewire", "desktop", "notifications"]
+fs = { execute = ["pipewire-recorder"] }
+process = { env = [
+  "PATH",
+  "HOME",
+  "XDG_RUNTIME_DIR",
+  "DBUS_SESSION_BUS_ADDRESS",
+  "XDG_CONFIG_HOME",
+  "XDG_DATA_HOME",
+  "RUST_LOG"
+] }
+clipboard = { write = true }
