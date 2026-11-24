@@ -48,3 +48,11 @@ version = "0.1.0"
 description = "Open recent Zed projects from the launcher"
 readme = "README.md"
 tags = ["zed", "launcher"]
+
+[[plugin]]
+id = "pipewire-recorder"
+name = "PipeWire Recorder"
+version = "0.1.0"
+description = "Automatic lossless PipeWire audio stream recorder with MPRIS metadata, cover art, and virtual capture sink"
+readme = "README.md"
+tags = ["audio", "pipewire", "recorder", "music"]
