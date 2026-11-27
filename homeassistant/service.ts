@@ -11,6 +11,7 @@ import * as secrets from 'corona/secrets';
 import { WebSocket, type WebSocketSocket } from 'websocket';
 import type { Context } from 'corona/kit';
 import { isObject } from './state.ts';
+import { Dashboard } from './dashboard.ts';
 
 export type Status =
   | 'unconfigured'
@@ -76,9 +77,30 @@ function isStates(value: Value): value is State[] {
 let snapshot: Snapshot = { entities: {}, error: null, status: 'connecting' };
 let session: Session | null = null;
 
+/** Calls a Home Assistant service on `entity`, for the dashboard */
+async function callService(
+  domain: string,
+  service: string,
+  entity: string,
+  data?: Record<string, Value>
+): Promise<void> {
+  await live().request({
+    domain,
+    service,
+    service_data: data ?? {},
+    target: { entity_id: entity },
+    type: 'call_service'
+  });
+}
+
+let dashboard: Dashboard | null = null;
+
 function publish(patch: Partial<Snapshot>): void {
   snapshot = { ...snapshot, ...patch };
   setState('ha', snapshot);
+  if (patch.entities) {
+    dashboard?.sync(snapshot.entities);
+  }
 }
 
 /** Each answers with the line the panel shows, or a value */
@@ -117,6 +139,7 @@ const methods: Record<string, (args: Args) => Promise<Value>> = {
 type ServiceContext = Pick<Context, 'sleep' | 'timer'>;
 
 export default async function main(cx: ServiceContext): Promise<void> {
+  dashboard = new Dashboard(callService);
   onChange(follow);
   onCall((call) => void answer(call));
   void connect(cx);

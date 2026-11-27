@@ -33,6 +33,7 @@ import { type Socket, connect } from 'net';
 import { Buffer } from 'buffer';
 import type { Context } from 'corona/kit';
 import { message } from './util.ts';
+import { dashboard } from './dashboard.ts';
 
 const KDECONNECT = 'org.kde.kdeconnect';
 const TAILSCALE = '/run/tailscale/tailscaled.sock';
@@ -90,6 +91,7 @@ export default async function main(
     console.warn(`demo: setOptions: ${message(error)}`);
   }
   onSleep(sleepEvent);
+  dashboard();
   // Not awaited: `notify` waits for a click while other calls go on
   onCall((call) => void answer(call));
 }
