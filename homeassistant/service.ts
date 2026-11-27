@@ -74,6 +74,10 @@ function isStates(value: Value): value is State[] {
   );
 }
 
+/** How long a request may wait for its answer, and how often an idle connection is pinged */
+const TIMEOUT_MS = 15_000;
+const PING_MS = 30_000;
+
 let snapshot: Snapshot = { entities: {}, error: null, status: 'connecting' };
 let session: Session | null = null;
 
@@ -259,25 +263,36 @@ class Session {
   >;
   /** The id of the running subscribe_entities */
   declare private subscription: number | null;
+  /** Rejects on `close`, so `run` ends even when a dead peer never answers the close frame */
+  declare private readonly closed: Promise<never>;
+  declare private shut: (error: Error) => void;
 
   public constructor(socket: WebSocketSocket) {
     this.socket = socket;
     this.next = 1;
     this.pending = new Map();
     this.subscription = null;
+    this.shut = () => {};
+    this.closed = new Promise((_, reject) => (this.shut = reject));
+    this.closed.catch(() => {});
   }
 
-  /** Reads until the connection closes */
+  /** Reads until the connection closes; pings so a dead connection is noticed */
   public async run(pinned: string[]): Promise<void> {
     void this.subscribe(pinned).catch((error: unknown) =>
       setState('msg', `✗ ${message(error)}`)
     );
+    const heartbeat = setInterval(
+      () => void this.request({ type: 'ping' }).catch(() => {}),
+      PING_MS
+    );
     try {
       while (true) {
-        const msg: Message = JSON.parse(String(await this.socket.read()));
-        this.receive(msg);
+        const raw = await Promise.race([this.socket.read(), this.closed]);
+        this.receive(JSON.parse(String(raw)));
       }
     } finally {
+      clearInterval(heartbeat);
       for (const { reject } of this.pending.values()) {
         reject(new Error('the connection to Home Assistant closed'));
       }
@@ -286,13 +301,13 @@ class Session {
   }
 
   private receive(msg: Message): void {
-    if (msg.type === 'result') {
+    if (msg.type === 'result' || msg.type === 'pong') {
       const waiter = this.pending.get(msg.id);
       this.pending.delete(msg.id);
       if (!waiter) {
         return;
       }
-      if (msg.success) {
+      if (msg.success || msg.type === 'pong') {
         waiter.resolve(msg.result ?? null);
       } else {
         waiter.reject(new Error(msg.error?.message ?? 'request failed'));
@@ -309,11 +324,27 @@ class Session {
     const id = this.next;
     this.next += 1;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { reject, resolve });
+      // No answer in time: the connection is dead, so drop it and reconnect
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error('Home Assistant did not answer'));
+        this.close();
+      }, TIMEOUT_MS);
+      this.pending.set(id, {
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        }
+      });
       this.socket
         .write(JSON.stringify({ ...msg, id }))
         .catch((error: unknown): void => {
           this.pending.delete(id);
+          clearTimeout(timer);
           reject(error instanceof Error ? error : new Error(String(error)));
         });
     });
@@ -339,6 +370,7 @@ class Session {
   }
 
   public close(): void {
+    this.shut(new Error('the connection to Home Assistant closed'));
     void this.socket.close().catch(() => {});
   }
 }
