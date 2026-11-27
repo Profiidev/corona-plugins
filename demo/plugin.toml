@@ -20,6 +20,27 @@ name = "Demo"
 width = 520
 height = 640
 
+# dashboard tiles, sliders and cards; listed as `demo:ping`, `demo:level` and `demo:status` in
+# the settings app's control center lists. The service also adds `demo:beat` while it runs.
+[quick_actions.ping]
+name = "Demo ping"
+icon = "bell"
+
+[sliders.level]
+name = "Demo level"
+icon = "sliders-horizontal"
+min = 0
+max = 10
+step = 1
+unit = "pt"
+throttle_ms = 100
+
+[cards.status]
+view = "card.ts"
+name = "Demo"
+# what `options()` returns in the card
+props = { title = "Demo card" }
+
 [[settings]]
 key = "greeting"
 label = "Greeting"
@@ -59,7 +80,7 @@ dynamic = true
 default = "none"
 
 [capabilities]
-corona = ["notifications", "secrets", "desktop", "power"]
+corona = ["notifications", "secrets", "desktop", "power", "dashboard"]
 # the PNG read as bytes for `image(Uint8Array)`; file handles write into the data dir
 fs = { read = [
   "${pluginDir}",

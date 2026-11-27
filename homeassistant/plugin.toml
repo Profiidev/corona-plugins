@@ -43,5 +43,6 @@ type = "list"
 default = []
 
 [capabilities]
-corona = ["secrets"]
+# tiles for the monitored lights, switches, scenes and automations, sliders for dimmable lights
+corona = ["secrets", "dashboard"]
 network = { lan_hosts = ["${setting:url}"] }

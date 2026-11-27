@@ -147,6 +147,22 @@ notify:
   picked:
     en: 'notification %{id}: picked %{key}'
     de: 'Benachrichtigung %{id}: %{key} gewählt'
+dashboard:
+  ping:
+    en: Ping
+    de: Ping
+  clicks:
+    en: '%{count} clicks'
+    de: '%{count} Klicks'
+  beat:
+    en: Heartbeat
+    de: Herzschlag
+  level:
+    en: Level
+    de: Stufe
+  card:
+    en: 'Heartbeat %{count} · level %{level}'
+    de: 'Herzschlag %{count} · Stufe %{level}'
 error:
   unknown:
     en: 'unknown method %{method}'
